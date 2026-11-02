@@ -8,15 +8,6 @@ require_once 'config/db.php';
 // Import Activity Logger (PostgreSQL/PDO Compatible)
 require_once 'config/logger.php';
 
-// Import PHPMailer Classes
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// Direktang i-include ang PHPMailer classes mula sa vendor folder
-require_once __DIR__ . '/vendor/Exception.php';
-require_once __DIR__ . '/vendor/PHPMailer.php';
-require_once __DIR__ . '/vendor/SMTP.php';
-
 $message = '';
 $registration_success = false;
 $registered_email = '';
@@ -57,9 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             $check_email->execute([':email' => $email]);
             $existing_email_user = $check_email->fetch(PDO::FETCH_ASSOC);
 
-            // BAGONG LOGIC DITO
             if ($check_user->fetch()) {
-                // I-check kung ang username ay pagmamay-ari ng existing email na hindi pa verified (para payagan siyang mag-update ng username)
                 $is_own_unverified_username = false;
                 if ($existing_email_user) {
                     $check_own_username = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) AND id = :id LIMIT 1");
@@ -74,12 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 }
             } 
 
-            // Kung existing ang email PERO VERIFIED NA, doon lang natin harangin
             if (empty($message) && $existing_email_user && (int)$existing_email_user['is_verified'] === 1) {
                 $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The email address <strong>'.htmlspecialchars($email).'</strong> is already registered.</div>';
             } 
 
-            // Kung wala pang error sa itaas, proceed sa save/update
             if (empty($message)) {
                 // Hash Password & Generate Verification Token
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -139,30 +126,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                         );
                     }
 
-                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
                     $verify_link = site_base_url() . "/verify.php?token=" . $token;
 
-                    // IPADALA ANG EMAIL GAMIT ANG PHPMAILER GMAIL SMTP
-                    $mail = new PHPMailer(true);
-
+                    // ✅ I-EMAIL GAMIT ANG RESEND API (HTTPS)
                     try {
-                        // Server settings
-                        $mail->isSMTP();
-                        $mail->Host       = 'smtp.gmail.com';
-                        $mail->SMTPAuth   = true;
-                        $mail->Username   = env_value('MAIL_USERNAME', ''); 
-                        $mail->Password   = env_value('MAIL_PASSWORD', '');   
-                        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                        $mail->Port       = 443; // <--- BINAGO SA 443
-
-                        // Recipients
-                        $mail->setFrom(env_value('MAIL_USERNAME', ''), 'RENTRACK LGU');
-                        $mail->addAddress($email, $fullname);
-
-                        // Content
-                        $mail->isHTML(true);
-                        $mail->Subject = 'Confirm your RENTRACK LGU Account';
-                        $mail->Body    = "
+                        $api_key = env_value('RESEND_API_KEY', '');
+                        
+                        $email_body = "
                         <html>
                         <body style='font-family: Arial, sans-serif; background-color: #f8fafc; color: #0f172a; padding: 20px;'>
                             <div style='max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0;'>
@@ -177,12 +147,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                         </body>
                         </html>";
 
-                        $mail->send();
-                        $registration_success = true;
-                        $registered_email = $email;
-                        $registered_username = $username;
+                        $email_data = [
+                            "from" => "RENTRACK LGU <onboarding@resend.dev>",
+                            "to" => [$email],
+                            "subject" => "Confirm your RENTRACK LGU Account",
+                            "html" => $email_body
+                        ];
+
+                        $ch = curl_init('https://api.resend.com/emails');
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            'Authorization: Bearer ' . $api_key,
+                            'Content-Type: application/json'
+                        ]);
+                        
+                        $response = curl_exec($ch);
+                        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+
+                        if ($http_code >= 200 && $http_code < 300) {
+                            $registration_success = true;
+                            $registered_email = $email;
+                            $registered_username = $username;
+                        } else {
+                            $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Could not send email. API Error: ' . htmlspecialchars($response) . '</div>';
+                        }
                     } catch (Exception $e) {
-                        $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Could not send email. Mailer Error: ' . htmlspecialchars($mail->ErrorInfo) . '</div>';
+                        $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Could not send email. ' . htmlspecialchars($e->getMessage()) . '</div>';
                     }
                 } else {
                     $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> An error occurred while saving. Please try again.</div>';

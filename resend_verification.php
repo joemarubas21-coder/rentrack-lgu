@@ -5,18 +5,6 @@ require_once __DIR__ . '/config/session.php'; app_session_start();
 require_once 'config/db.php';
 require_once 'config/logger.php';
 
-// PHPMailer Integration
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-if (file_exists(__DIR__ . '/vendor/Exception.php')) {
-    require_once __DIR__ . '/vendor/Exception.php';
-    require_once __DIR__ . '/vendor/PHPMailer.php';
-    require_once __DIR__ . '/vendor/SMTP.php';
-} elseif (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
-}
-
 $message = '';
 $message_type = ''; // 'success' o 'error'
 $prefilled_email = '';
@@ -83,29 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                 }
 
                 // Build verification link
-                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
                 $verify_link = site_base_url() . "/verify.php?token=" . $new_token;
 
-                // ✅ Ipadala ang bagong verification email via PHPMailer
-                $mail = new PHPMailer(true);
-
+                // ✅ I-EMAIL GAMIT ANG RESEND API (HTTPS)
                 try {
-                    $mail->isSMTP();
-                    $mail->Host       = 'smtp.gmail.com';
-                    $mail->SMTPAuth   = true;
-                    $mail->Username   = env_value('MAIL_USERNAME', '');
-                    $mail->Password   = env_value('MAIL_PASSWORD', '');
-                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                    $mail->Port       = 443; // <--- BINAGO SA 443
-
-                    $mail->setFrom(env_value('MAIL_USERNAME', ''), 'RENTRACK LGU');
-                    $mail->addAddress($email, $user['fullname']);
-
-                    $mail->isHTML(true);
-                    $mail->Subject = 'Resend: Confirm your RENTRACK LGU Account';
-
+                    $api_key = env_value('RESEND_API_KEY', '');
                     $safeName = htmlspecialchars($user['fullname']);
-                    $mail->Body = "
+
+                    $email_body = "
                     <html>
                     <body style='font-family: Arial, sans-serif; background-color: #0a0f1e; color: #ffffff; padding: 20px;'>
                         <div style='max-width: 600px; margin: 0 auto; background: #142b50; padding: 30px; border-radius: 12px;'>
@@ -122,13 +95,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                     </body>
                     </html>";
 
-                    $mail->send();
+                    $email_data = [
+                        "from" => "RENTRACK LGU <onboarding@resend.dev>",
+                        "to" => [$email],
+                        "subject" => "Resend: Confirm your RENTRACK LGU Account",
+                        "html" => $email_body
+                    ];
 
-                    $message = 'A new verification link has been sent to <strong style="color:#f4c84a;">' . htmlspecialchars($email) . '</strong>. Please check your inbox and spam folder.';
-                    $message_type = 'success';
+                    $ch = curl_init('https://api.resend.com/emails');
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Authorization: Bearer ' . $api_key,
+                        'Content-Type: application/json'
+                    ]);
+                    
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
 
+                    if ($http_code >= 200 && $http_code < 300) {
+                        $message = 'A new verification link has been sent to <strong style="color:#f4c84a;">' . htmlspecialchars($email) . '</strong>. Please check your inbox and spam folder.';
+                        $message_type = 'success';
+                    } else {
+                        $message = 'Could not send the verification email. API Error: ' . htmlspecialchars($response);
+                        $message_type = 'error';
+                    }
                 } catch (Exception $e) {
-                    $message = 'Could not send the verification email. Please try again later. (Mailer Error)';
+                    $message = 'Could not send the verification email. ' . htmlspecialchars($e->getMessage());
                     $message_type = 'error';
                 }
             }
