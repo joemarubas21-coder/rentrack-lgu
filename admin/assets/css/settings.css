@@ -1,0 +1,146 @@
+/* ==========================================================
+   SETTINGS PAGE STYLES
+========================================================== */
+
+.content {
+    padding: 24px;
+    background: #f4f7fb;
+    min-height: 100vh;
+}
+
+.page-header {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+}
+
+.page-header h2 {
+    font-size: 28px;
+    color: #0d47a1;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.page-header h2 i {
+    color: #1565c0;
+    margin-right: 10px;
+}
+
+.page-header p {
+    color: #777;
+    font-size: 15px;
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+}
+
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 6px;
+    color: #111827;
+}
+
+.card p {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.form-control,
+.form-select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 14px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.btn-primary {
+    background: #1565c0;
+    color: #fff;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.btn-primary:hover {
+    background: #0d47a1;
+}
+
+.toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toggle-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.toggle-item strong {
+    color: #111827;
+}
+
+.toggle-item span {
+    color: #64748b;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .content {
+        padding: 16px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,292 @@
+/* =====================================================
+   RENTRACK LGU
+   ADD USER PAGE
+====================================================== */
+
+.add-user-page{
+    padding:25px;
+}
+
+/* =========================
+   PAGE HEADER
+========================= */
+
+.page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+    flex-wrap:wrap;
+    gap:20px;
+}
+
+.page-header h2{
+    margin:0;
+    color:#1e3c72;
+    font-size:30px;
+    font-weight:700;
+}
+
+.page-header p{
+    margin-top:5px;
+    color:#666;
+    font-size:15px;
+}
+
+/* =========================
+   BACK BUTTON
+========================= */
+
+.back-btn{
+
+    background:#6c757d;
+    color:#fff;
+    padding:12px 18px;
+    border-radius:8px;
+    text-decoration:none;
+    transition:.3s;
+    font-weight:600;
+
+}
+
+.back-btn:hover{
+
+    background:#495057;
+
+}
+
+/* =========================
+   ALERTS
+========================= */
+
+.alert{
+
+    padding:15px 20px;
+    border-radius:8px;
+    margin-bottom:20px;
+    font-weight:600;
+
+}
+
+.success{
+
+    background:#d1e7dd;
+    color:#0f5132;
+    border-left:5px solid #198754;
+
+}
+
+.danger{
+
+    background:#f8d7da;
+    color:#842029;
+    border-left:5px solid #dc3545;
+
+}
+
+/* =========================
+   FORM CARD
+========================= */
+
+.form-card{
+
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+    overflow:hidden;
+
+}
+
+.form-header{
+
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+    color:#fff;
+    padding:18px 25px;
+    font-size:20px;
+    font-weight:600;
+
+}
+
+.form-body{
+
+    padding:30px;
+
+}
+
+/* =========================
+   GRID
+========================= */
+
+.form-grid{
+
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:20px;
+
+}
+
+/* =========================
+   FORM GROUP
+========================= */
+
+.form-group{
+
+    display:flex;
+    flex-direction:column;
+
+}
+
+.form-group label{
+
+    margin-bottom:8px;
+    font-weight:600;
+    color:#1e3c72;
+
+}
+
+.form-group label i{
+
+    margin-right:6px;
+    color:#d4af37;
+
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+.form-group input,
+.form-group select{
+
+    padding:13px 15px;
+    border:1px solid #dcdcdc;
+    border-radius:8px;
+    font-size:15px;
+    transition:.3s;
+    outline:none;
+    background:#fff;
+
+}
+
+.form-group input:focus,
+.form-group select:focus{
+
+    border-color:#1e3c72;
+    box-shadow:0 0 8px rgba(30,60,114,.20);
+
+}
+
+/* =========================
+   SHOW PASSWORD
+========================= */
+
+.show-password{
+
+    margin-top:20px;
+    margin-bottom:25px;
+
+}
+
+.show-password label{
+
+    cursor:pointer;
+    font-weight:600;
+    color:#555;
+
+}
+
+.show-password input{
+
+    margin-right:8px;
+
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.button-group{
+
+    display:flex;
+    gap:15px;
+    flex-wrap:wrap;
+
+}
+
+.save-btn{
+
+    background:linear-gradient(135deg,#198754,#20c997);
+    color:#fff;
+    border:none;
+    padding:13px 25px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s;
+
+}
+
+.save-btn:hover{
+
+    transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(0,0,0,.18);
+
+}
+
+.cancel-btn{
+
+    background:#6c757d;
+    color:#fff;
+    text-decoration:none;
+    padding:13px 25px;
+    border-radius:8px;
+    font-weight:600;
+    transition:.3s;
+
+}
+
+.cancel-btn:hover{
+
+    background:#495057;
+
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:992px){
+
+.form-grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+@media(max-width:768px){
+
+.page-header{
+
+flex-direction:column;
+align-items:flex-start;
+
+}
+
+.button-group{
+
+flex-direction:column;
+
+}
+
+.save-btn,
+.cancel-btn{
+
+width:100%;
+text-align:center;
+
+}
+
+}

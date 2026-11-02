@@ -1,0 +1,138 @@
+/* =====================================================
+   VIEW RENTAL - matches staff dashboard.css blue theme
+===================================================== */
+
+.hero-card{
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    color:#fff;
+    padding:26px 30px;
+    border-radius:16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:16px;
+    box-shadow:0 12px 30px rgba(13,71,161,.18);
+    margin-bottom:24px;
+}
+
+.hero-card h2{
+    font-size:24px;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.hero-card p{
+    color:rgba(255,255,255,.88);
+    font-size:14px;
+}
+
+.hero-meta{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.quick-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:11px 20px;
+    border-radius:10px;
+    text-decoration:none;
+    font-weight:600;
+    font-size:13.5px;
+    transition:.2s ease;
+    border:none;
+    cursor:pointer;
+}
+
+.quick-btn.btn-blue{
+    background:rgba(255,255,255,.16);
+    color:#fff;
+}
+.quick-btn.btn-blue:hover{
+    background:rgba(255,255,255,.28);
+    transform:translateY(-2px);
+}
+
+.quick-btn.btn-green{
+    background:#22c55e;
+    color:#fff;
+}
+.quick-btn.btn-green:hover{
+    background:#16a34a;
+    transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(34,197,94,.3);
+}
+
+.card{
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 8px 24px rgba(15,23,42,.06);
+    overflow:hidden;
+    margin-bottom:20px;
+}
+
+.card-header{
+    padding:16px 22px;
+    background:#f4f7fc;
+    border-bottom:1px solid #e6ecf5;
+    font-weight:700;
+    color:#1565c0;
+    font-size:15px;
+}
+
+.card-body{
+    padding:22px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    gap:16px;
+}
+
+.info-item{
+    background:#f8fafc;
+    padding:14px 16px;
+    border-radius:10px;
+}
+
+.info-item label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:#94a3b8;
+    font-weight:700;
+    margin-bottom:6px;
+}
+
+.info-item p{
+    margin:0;
+    color:#0f172a;
+    font-weight:600;
+    font-size:14.5px;
+}
+
+.info-item.full{
+    grid-column:1 / -1;
+}
+
+.status-badge{
+    display:inline-block;
+    padding:5px 14px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+}
+
+.status-approved{ background:#dcfce7; color:#16a34a; }
+.status-pending{ background:#fef3c7; color:#d97706; }
+.status-rejected{ background:#fee2e2; color:#dc2626; }
+
+@media (max-width:768px){
+    .hero-card{ flex-direction:column; align-items:flex-start; }
+    .hero-meta{ width:100%; }
+    .quick-btn{ flex:1; justify-content:center; }
+}

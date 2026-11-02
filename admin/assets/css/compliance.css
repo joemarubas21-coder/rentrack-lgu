@@ -1,0 +1,267 @@
+/* ==========================================================
+   COMPLIANCE MONITORING PAGE STYLES
+========================================================== */
+
+.content {
+    padding: 24px;
+    background: #f4f7fb;
+    min-height: 100vh;
+}
+
+.page-header {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+}
+
+.page-header h2 {
+    font-size: 28px;
+    color: #0d47a1;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.page-header h2 i {
+    color: #1565c0;
+    margin-right: 10px;
+}
+
+.page-header p {
+    color: #777;
+    font-size: 15px;
+    margin: 0;
+}
+
+.btn-primary {
+    background: #1565c0;
+    color: #fff;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: 0.25s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    background: #0d47a1;
+    transform: translateY(-2px);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-card .label {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.stat-card .value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.stat-card i {
+    font-size: 24px;
+    color: #2563eb;
+}
+
+.filter-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+}
+
+.filter-left {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+    font-size: 14px;
+}
+
+.search-box input,
+.filter-card select {
+    padding: 12px 15px 12px 42px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+    transition: 0.25s;
+    background: #fafafa;
+}
+
+.search-box input:focus,
+.filter-card select:focus {
+    border-color: #1565c0;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(21, 101, 192, 0.12);
+}
+
+.filter-card select {
+    min-width: 180px;
+    padding-left: 12px;
+}
+
+.table-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+}
+
+.table-header h3 {
+    margin: 0;
+    color: #111827;
+}
+
+.table-header p {
+    margin: 4px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+}
+
+th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+}
+
+tr:hover {
+    background: #f9fbff;
+}
+
+.badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.badge.compliant {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge.non-compliant {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+}
+
+.empty-state i {
+    font-size: 36px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+
+.empty-state h4 {
+    margin: 8px 0 6px;
+    color: #334155;
+}
+
+@media (max-width: 768px) {
+    .content {
+        padding: 16px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .filter-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box input,
+    .filter-card select {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,1251 @@
+/* ===========================================================
+   RENTRACK LGU
+   RENTAL MANAGEMENT
+   PROFESSIONAL LGU DESIGN
+=========================================================== */
+
+/* ===========================
+   PAGE CONTENT
+=========================== */
+
+.content{
+    padding:25px;
+    background:#f4f7fb;
+    min-height:100vh;
+}
+
+
+/* ===========================
+   PAGE HEADER
+=========================== */
+
+.page-header{
+
+    background:#fff;
+
+    border-radius:14px;
+
+    padding:25px 30px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:20px;
+
+    box-shadow:0 5px 18px rgba(0,0,0,.08);
+
+}
+
+.page-header h2{
+
+    font-size:28px;
+
+    color:#0d47a1;
+
+    margin-bottom:6px;
+
+    font-weight:700;
+
+}
+
+.page-header h2 i{
+
+    color:#1565c0;
+
+    margin-right:10px;
+
+}
+
+.page-header p{
+
+    color:#777;
+
+    font-size:15px;
+
+    margin:0;
+
+}
+
+
+/* ===========================
+   PRIMARY BUTTON
+=========================== */
+
+.btn-primary{
+
+    background:#1565c0;
+
+    color:#fff;
+
+    text-decoration:none;
+
+    padding:12px 20px;
+
+    border-radius:8px;
+
+    font-weight:600;
+
+    transition:.25s;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+}
+
+.btn-primary:hover{
+
+    background:#0d47a1;
+
+    transform:translateY(-2px);
+
+}
+
+
+/* ===========================
+   FILTER CARD
+=========================== */
+
+.filter-card{
+
+    background:#fff;
+
+    border-radius:14px;
+
+    padding:20px;
+
+    margin-bottom:20px;
+
+    box-shadow:0 5px 18px rgba(0,0,0,.08);
+
+}
+
+.filter-left{
+
+    display:flex;
+
+    gap:15px;
+
+    align-items:center;
+
+    flex-wrap:wrap;
+
+}
+
+
+/* ===========================
+   SEARCH BOX
+=========================== */
+
+.search-box{
+
+    position:relative;
+
+}
+
+.search-box i{
+
+    position:absolute;
+
+    left:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#888;
+
+    font-size:14px;
+
+}
+
+.search-box input{
+
+    width:320px;
+
+    padding:12px 15px 12px 42px;
+
+    border:1px solid #dcdcdc;
+
+    border-radius:8px;
+
+    outline:none;
+
+    font-size:14px;
+
+    transition:.25s;
+
+    background:#fafafa;
+
+}
+
+.search-box input:focus{
+
+    border-color:#1565c0;
+
+    background:#fff;
+
+    box-shadow:0 0 0 4px rgba(21,101,192,.12);
+
+}
+
+
+/* ===========================
+   DROPDOWN
+=========================== */
+
+.filter-card select{
+
+    min-width:180px;
+
+    padding:12px;
+
+    border:1px solid #dcdcdc;
+
+    border-radius:8px;
+
+    background:#fff;
+
+    outline:none;
+
+    font-size:14px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.filter-card select:focus{
+
+    border-color:#1565c0;
+
+    box-shadow:0 0 0 4px rgba(21,101,192,.12);
+
+}
+
+
+/* ===========================
+   TABLE CARD
+=========================== */
+
+.table-card{
+
+    background:#fff;
+
+    border-radius:14px;
+
+    box-shadow:0 5px 18px rgba(0,0,0,.08);
+
+    overflow:hidden;
+
+}
+
+
+/* ===========================
+   TABLE HEADER
+=========================== */
+
+.table-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:22px 25px;
+
+    border-bottom:1px solid #eee;
+
+}
+
+.table-header h3{
+
+    color:#1565c0;
+
+    font-size:22px;
+
+    margin-bottom:5px;
+
+}
+
+.table-header p{
+
+    color:#777;
+
+    font-size:14px;
+
+    margin:0;
+
+}
+
+
+/* ===========================
+   RECORD COUNTER
+=========================== */
+
+.record-counter{
+
+    background:#e3f2fd;
+
+    color:#1565c0;
+
+    padding:10px 16px;
+
+    border-radius:30px;
+
+    font-size:14px;
+
+    font-weight:600;
+
+}
+
+/* ===========================================================
+   TABLE DESIGN
+=========================================================== */
+
+.table-responsive{
+
+    width:100%;
+    overflow-x:auto;
+
+}
+
+table{
+
+    width:100%;
+    border-collapse:collapse;
+    min-width:1200px;
+
+}
+
+table thead{
+
+    background:linear-gradient(90deg,#1565c0,#1976d2);
+
+}
+
+table thead th{
+
+    color:#fff;
+
+    padding:16px 15px;
+
+    text-align:left;
+
+    font-size:14px;
+
+    font-weight:600;
+
+    letter-spacing:.3px;
+
+    white-space:nowrap;
+
+}
+
+table tbody tr{
+
+    transition:.25s;
+
+    border-bottom:1px solid #ececec;
+
+}
+
+table tbody tr:nth-child(even){
+
+    background:#fbfcfe;
+
+}
+
+table tbody tr:hover{
+
+    background:#eef6ff;
+
+}
+
+table tbody td{
+
+    padding:15px;
+
+    font-size:14px;
+
+    color:#444;
+
+    vertical-align:middle;
+
+}
+
+
+/* ===========================
+   TRACKING NUMBER
+=========================== */
+
+.tracking{
+
+    color:#1565c0;
+
+    font-weight:700;
+
+    font-size:14px;
+
+}
+
+
+/* ===========================
+   OWNER INFO
+=========================== */
+
+.owner-info{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    font-weight:600;
+
+}
+
+.owner-info i{
+
+    width:32px;
+
+    height:32px;
+
+    border-radius:50%;
+
+    background:#e3f2fd;
+
+    color:#1565c0;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+}
+
+
+/* ===========================
+   RENTAL TYPE
+=========================== */
+
+.type-badge{
+
+    display:inline-block;
+
+    background:#f1f8ff;
+
+    color:#1565c0;
+
+    padding:7px 14px;
+
+    border-radius:30px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+}
+
+
+/* ===========================
+   MONTHLY RATE
+=========================== */
+
+table tbody td:nth-child(6){
+
+    font-weight:700;
+
+    color:#2e7d32;
+
+}
+
+
+/* ===========================
+   PERMIT EXPIRY
+=========================== */
+
+table tbody td:nth-child(7){
+
+    font-weight:600;
+
+    color:#666;
+
+}
+
+
+/* ===========================
+   TABLE SCROLLBAR
+=========================== */
+
+.table-responsive::-webkit-scrollbar{
+
+    height:10px;
+
+}
+
+.table-responsive::-webkit-scrollbar-track{
+
+    background:#ececec;
+
+}
+
+.table-responsive::-webkit-scrollbar-thumb{
+
+    background:#1565c0;
+
+    border-radius:20px;
+
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover{
+
+    background:#0d47a1;
+
+}
+
+/* ===========================================================
+   STATUS BADGES
+=========================================================== */
+
+.badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:7px 14px;
+
+    border-radius:30px;
+
+    font-size:12px;
+
+    font-weight:700;
+
+    letter-spacing:.3px;
+
+    min-width:110px;
+
+}
+
+.badge.success{
+
+    background:#d4edda;
+
+    color:#1b5e20;
+
+}
+
+.badge.warning{
+
+    background:#fff3cd;
+
+    color:#856404;
+
+}
+
+.badge.danger{
+
+    background:#f8d7da;
+
+    color:#721c24;
+
+}
+
+.badge.dark{
+
+    background:#eceff1;
+
+    color:#37474f;
+
+}
+
+.badge.secondary{
+
+    background:#eeeeee;
+
+    color:#616161;
+
+}
+
+
+/* ===========================================================
+   ACTION BUTTONS
+=========================================================== */
+
+.actions{
+
+    white-space:nowrap;
+
+}
+
+.btn-icon{
+
+    width:38px;
+
+    height:38px;
+
+    border-radius:10px;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    margin:2px;
+
+    text-decoration:none;
+
+    transition:.25s;
+
+    font-size:15px;
+
+    border:1px solid transparent;
+
+}
+
+
+/* VIEW */
+
+.btn-icon.view{
+
+    background:#e3f2fd;
+
+    color:#1565c0;
+
+}
+
+.btn-icon.view:hover{
+
+    background:#1565c0;
+
+    color:#fff;
+
+}
+
+
+/* EDIT */
+
+.btn-icon.edit{
+
+    background:#fff8e1;
+
+    color:#f57f17;
+
+}
+
+.btn-icon.edit:hover{
+
+    background:#f57f17;
+
+    color:#fff;
+
+}
+
+
+/* APPROVE */
+
+.btn-icon.approve{
+
+    background:#e8f5e9;
+
+    color:#2e7d32;
+
+}
+
+.btn-icon.approve:hover{
+
+    background:#2e7d32;
+
+    color:#fff;
+
+}
+
+
+/* REJECT */
+
+.btn-icon.reject{
+
+    background:#ffebee;
+
+    color:#c62828;
+
+}
+
+.btn-icon.reject:hover{
+
+    background:#c62828;
+
+    color:#fff;
+
+}
+
+
+/* PRINT */
+
+.btn-icon.print{
+
+    background:#ede7f6;
+
+    color:#5e35b1;
+
+}
+
+.btn-icon.print:hover{
+
+    background:#5e35b1;
+
+    color:#fff;
+
+}
+
+
+/* ARCHIVE */
+
+.btn-icon.archive{
+
+    background:#eceff1;
+
+    color:#455a64;
+
+}
+
+.btn-icon.archive:hover{
+
+    background:#455a64;
+
+    color:#fff;
+
+}
+
+
+/* ===========================================================
+   BUTTON ANIMATION
+=========================================================== */
+
+.btn-icon:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:0 8px 18px rgba(0,0,0,.18);
+
+}
+
+
+/* ===========================================================
+   EMPTY RECORD
+=========================================================== */
+
+#emptyRow td{
+
+    padding:50px;
+
+    text-align:center;
+
+    color:#999;
+
+    font-size:15px;
+
+}
+
+#emptyRow i{
+
+    font-size:42px;
+
+    margin-bottom:12px;
+
+    color:#cfd8dc;
+
+}
+
+
+/* ===========================================================
+   RESPONSIVE
+=========================================================== */
+
+@media(max-width:992px){
+
+.page-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+gap:15px;
+
+}
+
+.filter-left{
+
+flex-direction:column;
+
+align-items:stretch;
+
+}
+
+.search-box{
+
+width:100%;
+
+}
+
+.search-box input{
+
+width:100%;
+
+}
+
+.filter-card select{
+
+width:100%;
+
+}
+
+.record-counter{
+
+margin-top:10px;
+
+}
+
+}
+
+
+@media(max-width:768px){
+
+.content{
+
+padding:15px;
+
+}
+
+.page-header{
+
+padding:20px;
+
+}
+
+.page-header h2{
+
+font-size:24px;
+
+}
+
+.table-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+gap:10px;
+
+}
+
+.btn-primary{
+
+width:100%;
+
+justify-content:center;
+
+}
+
+}
+
+
+/* ===========================================================
+   SMOOTH EFFECTS
+=========================================================== */
+
+*{
+
+transition:background .25s,
+color .25s,
+box-shadow .25s,
+transform .25s;
+
+}
+
+/* ===========================================================
+   RENTRACK LGU
+   RENTALS.CSS PART 4 (FINAL)
+=========================================================== */
+
+
+/* ===========================
+   STICKY TABLE HEADER
+=========================== */
+
+.table-responsive{
+
+    max-height:650px;
+
+    overflow:auto;
+
+}
+
+.table-responsive thead th{
+
+    position:sticky;
+
+    top:0;
+
+    z-index:100;
+
+}
+
+
+/* ===========================
+   PAGINATION (READY)
+=========================== */
+
+.pagination{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:18px 25px;
+
+    background:#fff;
+
+    border-top:1px solid #eee;
+
+}
+
+.pagination-info{
+
+    color:#666;
+
+    font-size:14px;
+
+}
+
+.pagination-links{
+
+    display:flex;
+
+    gap:8px;
+
+}
+
+.pagination-links a{
+
+    width:38px;
+
+    height:38px;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    border-radius:8px;
+
+    text-decoration:none;
+
+    background:#f4f6f9;
+
+    color:#555;
+
+    font-weight:600;
+
+    transition:.25s;
+
+}
+
+.pagination-links a:hover{
+
+    background:#1565c0;
+
+    color:#fff;
+
+}
+
+.pagination-links .active{
+
+    background:#1565c0;
+
+    color:#fff;
+
+}
+
+
+/* ===========================
+   ALERTS
+=========================== */
+
+.alert{
+
+    padding:15px 20px;
+
+    border-radius:10px;
+
+    margin-bottom:20px;
+
+    font-size:14px;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+}
+
+.alert-success{
+
+    background:#d4edda;
+
+    color:#155724;
+
+    border-left:5px solid #2e7d32;
+
+}
+
+.alert-danger{
+
+    background:#f8d7da;
+
+    color:#721c24;
+
+    border-left:5px solid #c62828;
+
+}
+
+.alert-warning{
+
+    background:#fff3cd;
+
+    color:#856404;
+
+    border-left:5px solid #f9a825;
+
+}
+
+.alert-info{
+
+    background:#d1ecf1;
+
+    color:#0c5460;
+
+    border-left:5px solid #1565c0;
+
+}
+
+
+/* ===========================
+   LOADING
+=========================== */
+
+.loading{
+
+    text-align:center;
+
+    padding:50px;
+
+    color:#888;
+
+}
+
+.loading i{
+
+    font-size:35px;
+
+    color:#1565c0;
+
+    animation:spin 1s linear infinite;
+
+}
+
+@keyframes spin{
+
+0%{
+
+transform:rotate(0deg);
+
+}
+
+100%{
+
+transform:rotate(360deg);
+
+}
+
+}
+
+
+/* ===========================
+   CARD ANIMATION
+=========================== */
+
+.page-header,
+.filter-card,
+.table-card{
+
+    animation:fadeIn .4s ease;
+
+}
+
+@keyframes fadeIn{
+
+from{
+
+opacity:0;
+
+transform:translateY(12px);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateY(0);
+
+}
+
+}
+
+
+/* ===========================
+   TABLE ROW ANIMATION
+=========================== */
+
+table tbody tr{
+
+    animation:showRow .25s ease;
+
+}
+
+@keyframes showRow{
+
+from{
+
+opacity:0;
+
+transform:translateX(-8px);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateX(0);
+
+}
+
+}
+
+
+/* ===========================
+   BUTTON ACTIVE
+=========================== */
+
+.btn-icon:active{
+
+    transform:scale(.94);
+
+}
+
+
+/* ===========================
+   INPUT PLACEHOLDER
+=========================== */
+
+.search-box input::placeholder{
+
+    color:#999;
+
+}
+
+
+/* ===========================
+   FOCUS ACCESSIBILITY
+=========================== */
+
+button:focus,
+a:focus,
+input:focus,
+select:focus{
+
+    outline:none;
+
+}
+
+
+/* ===========================
+   PRINT
+=========================== */
+
+@media print{
+
+.sidebar,
+.navbar,
+.page-header a,
+.filter-card,
+.actions{
+
+display:none !important;
+
+}
+
+.content{
+
+padding:0;
+
+background:#fff;
+
+}
+
+.table-card{
+
+box-shadow:none;
+
+border:none;
+
+}
+
+table{
+
+min-width:100%;
+
+}
+
+}
+
+
+/* ===========================
+   FOOTER
+=========================== */
+
+.footer{
+
+margin-top:25px;
+
+color:#777;
+
+font-size:13px;
+
+text-align:center;
+
+}
+
+
+/* ===========================================================
+   END OF RENTALS.CSS
+=========================================================== */

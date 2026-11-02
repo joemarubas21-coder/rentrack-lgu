@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+config/db.local.php
+*.zip
+*.log
+*.bak
+.vscode/
+node_modules/
+
+# Composer Dependencies
+/vendor/
+
+# User-uploaded data (contains personal info) - never commit
+uploads/*
+!uploads/.gitkeep
+staff/uploads/*
+!staff/uploads/.gitkeep
+owner/uploads/*
+!owner/uploads/.htaccess
+inspector/uploads/inspection_evidence/*
+!inspector/uploads/inspection_evidence/.htaccess
+!inspector/uploads/inspection_evidence/index.php

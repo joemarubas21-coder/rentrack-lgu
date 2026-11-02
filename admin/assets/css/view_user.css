@@ -1,0 +1,474 @@
+/* =====================================================
+   RENTRACK LGU
+   VIEW USER PAGE
+====================================================== */
+
+.view-user-page{
+    padding:25px;
+}
+
+/* =========================
+   PAGE HEADER
+========================= */
+
+.page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+    flex-wrap:wrap;
+    gap:20px;
+}
+
+.page-header h2{
+    margin:0;
+    color:#1e3c72;
+    font-size:30px;
+    font-weight:700;
+}
+
+.page-header p{
+    margin-top:5px;
+    color:#666;
+}
+
+.back-btn{
+    background:#6c757d;
+    color:#fff;
+    text-decoration:none;
+    padding:12px 20px;
+    border-radius:8px;
+    transition:.3s;
+    font-weight:600;
+}
+
+.back-btn:hover{
+    background:#495057;
+}
+
+/* =========================
+   PROFILE CARD
+========================= */
+
+.profile-card{
+    background:#fff;
+    border-radius:15px;
+    overflow:hidden;
+    box-shadow:0 6px 20px rgba(0,0,0,.08);
+}
+
+/* =========================
+   PROFILE HEADER
+========================= */
+
+.profile-cover{
+
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+
+    text-align:center;
+
+    color:#fff;
+
+    padding:45px 20px;
+
+}
+
+.profile-avatar{
+
+    width:120px;
+
+    height:120px;
+
+    border-radius:50%;
+
+    background:#fff;
+
+    color:#1e3c72;
+
+    margin:auto;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:55px;
+
+    margin-bottom:20px;
+
+    border:5px solid rgba(255,255,255,.30);
+
+}
+
+.profile-cover h2{
+
+    margin:0;
+
+    font-size:30px;
+
+}
+
+.profile-cover p{
+
+    margin-top:10px;
+
+    opacity:.95;
+
+    font-size:18px;
+
+}
+
+/* =========================
+   STATUS BADGE
+========================= */
+
+.status-badge{
+
+    display:inline-block;
+
+    margin-top:18px;
+
+    padding:10px 20px;
+
+    border-radius:40px;
+
+    font-size:14px;
+
+    font-weight:bold;
+
+}
+
+.status-badge.active{
+
+    background:#198754;
+
+    color:#fff;
+
+}
+
+.status-badge.inactive{
+
+    background:#dc3545;
+
+    color:#fff;
+
+}
+
+/* =========================
+   BODY
+========================= */
+
+.profile-body{
+
+    padding:30px;
+
+}
+
+/* =========================
+   INFO CARD
+========================= */
+
+.info-card{
+
+    background:#fdfdfd;
+
+    border:1px solid #e5e5e5;
+
+    border-radius:12px;
+
+    overflow:hidden;
+
+}
+
+.info-header{
+
+    background:#f8f9fa;
+
+    color:#1e3c72;
+
+    padding:18px 25px;
+
+    font-size:20px;
+
+    font-weight:bold;
+
+    border-bottom:1px solid #eee;
+
+}
+
+.info-body{
+
+    padding:25px;
+
+}
+
+/* =========================
+   GRID
+========================= */
+
+.info-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:20px;
+
+}
+
+/* =========================
+   ITEM
+========================= */
+
+.info-item{
+
+    background:#fff;
+
+    border:1px solid #eee;
+
+    border-radius:10px;
+
+    padding:18px;
+
+    transition:.3s;
+
+}
+
+.info-item:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:0 5px 12px rgba(0,0,0,.08);
+
+}
+
+.info-item label{
+
+    display:block;
+
+    color:#1e3c72;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    margin-bottom:10px;
+
+}
+
+.info-item label i{
+
+    color:#d4af37;
+
+    margin-right:6px;
+
+}
+
+.info-item p{
+
+    margin:0;
+
+    color:#444;
+
+    font-size:16px;
+
+}
+
+/* =========================
+   BADGES
+========================= */
+
+.badge{
+
+    display:inline-block;
+
+    padding:8px 15px;
+
+    border-radius:30px;
+
+    font-size:13px;
+
+    font-weight:bold;
+
+}
+
+.badge-admin{
+
+    background:#0d6efd;
+
+    color:#fff;
+
+}
+
+.badge-owner{
+
+    background:#198754;
+
+    color:#fff;
+
+}
+
+.badge-inspector{
+
+    background:#6f42c1;
+
+    color:#fff;
+
+}
+
+.badge-staff{
+
+    background:#fd7e14;
+
+    color:#fff;
+
+}
+
+.badge-active{
+
+    background:#198754;
+
+    color:#fff;
+
+}
+
+.badge-inactive{
+
+    background:#dc3545;
+
+    color:#fff;
+
+}
+
+/* =========================
+   ACTION BUTTONS
+========================= */
+
+.action-buttons{
+
+    margin-top:30px;
+
+    display:flex;
+
+    gap:15px;
+
+    flex-wrap:wrap;
+
+}
+
+.action-buttons a{
+
+    text-decoration:none;
+
+    padding:14px 22px;
+
+    border-radius:8px;
+
+    color:#fff;
+
+    font-weight:600;
+
+    transition:.3s;
+
+}
+
+.btn-edit{
+
+    background:#ffc107;
+
+    color:#000 !important;
+
+}
+
+.btn-edit:hover{
+
+    background:#e0a800;
+
+}
+
+.btn-reset{
+
+    background:#6c757d;
+
+}
+
+.btn-reset:hover{
+
+    background:#495057;
+
+}
+
+.btn-back{
+
+    background:#1e3c72;
+
+}
+
+.btn-back:hover{
+
+    background:#16315c;
+
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:992px){
+
+.info-grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+@media(max-width:768px){
+
+.page-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+}
+
+.profile-cover{
+
+padding:35px 15px;
+
+}
+
+.profile-avatar{
+
+width:95px;
+
+height:95px;
+
+font-size:45px;
+
+}
+
+.profile-cover h2{
+
+font-size:24px;
+
+}
+
+.action-buttons{
+
+flex-direction:column;
+
+}
+
+.action-buttons a{
+
+text-align:center;
+
+width:100%;
+
+}
+
+}

@@ -1,0 +1,317 @@
+/* ==================================================
+   USER MANAGEMENT PAGE
+================================================== */
+
+.users-page{
+    padding:25px;
+}
+
+/* ===========================
+   PAGE HEADER
+=========================== */
+
+.page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:15px;
+    margin-bottom:25px;
+}
+
+.page-header h2{
+    margin:0;
+    font-size:30px;
+    color:#1e3c72;
+    font-weight:700;
+}
+
+.page-header p{
+    margin-top:5px;
+    color:#777;
+    font-size:15px;
+}
+
+/* ===========================
+   BUTTON
+=========================== */
+
+.page-header .btn{
+    background:#1e3c72;
+    color:#fff;
+    text-decoration:none;
+    padding:12px 20px;
+    border-radius:8px;
+    font-weight:600;
+    transition:.3s;
+}
+
+.page-header .btn:hover{
+    background:#16305c;
+    transform:translateY(-2px);
+}
+
+/* ===========================
+   STATISTICS
+=========================== */
+
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:18px;
+    margin-bottom:30px;
+}
+
+.stat-card{
+    border-radius:12px;
+    color:#fff;
+    padding:25px;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 5px 18px rgba(0,0,0,.15);
+    transition:.3s;
+}
+
+.stat-card:hover{
+    transform:translateY(-5px);
+}
+
+.stat-card i{
+    position:absolute;
+    right:20px;
+    top:20px;
+    font-size:42px;
+    opacity:.18;
+}
+
+.stat-card h3{
+    font-size:34px;
+    margin:0;
+}
+
+.stat-card p{
+    margin-top:8px;
+    font-size:15px;
+}
+
+/* COLORS */
+
+.blue{
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+}
+
+.green{
+    background:linear-gradient(135deg,#198754,#38b000);
+}
+
+.red{
+    background:linear-gradient(135deg,#dc3545,#ef233c);
+}
+
+.gold{
+    background:linear-gradient(135deg,#ffb703,#fb8500);
+}
+
+.cyan{
+    background:linear-gradient(135deg,#219ebc,#126782);
+}
+
+.purple{
+    background:linear-gradient(135deg,#6f42c1,#8338ec);
+}
+
+.orange{
+    background:linear-gradient(135deg,#f77f00,#d62828);
+}
+
+/* ===========================
+   TABLE CARD
+=========================== */
+
+.table-card{
+    background:#fff;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+}
+
+.table-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:15px;
+    padding:18px 22px;
+    background:#f8f9fb;
+    border-bottom:1px solid #eee;
+}
+
+.table-header h3{
+    margin:0;
+    color:#1e3c72;
+}
+
+.search-box{
+    width:280px;
+    max-width:100%;
+    padding:10px 14px;
+    border:1px solid #ccc;
+    border-radius:8px;
+    outline:none;
+}
+
+.search-box:focus{
+    border-color:#1e3c72;
+}
+
+/* ===========================
+   TABLE
+=========================== */
+
+.table-responsive{
+    overflow-x:auto;
+}
+
+.users-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.users-table thead{
+    background:#1e3c72;
+}
+
+.users-table thead th{
+    color:#fff;
+    padding:15px;
+    text-align:left;
+    font-size:14px;
+}
+
+.users-table tbody td{
+    padding:14px;
+    border-bottom:1px solid #eee;
+    vertical-align:middle;
+}
+
+.users-table tbody tr{
+    transition:.25s;
+}
+
+.users-table tbody tr:hover{
+    background:#f7faff;
+}
+
+/* ===========================
+   BADGES
+=========================== */
+
+.badge{
+    display:inline-block;
+    padding:7px 12px;
+    border-radius:30px;
+    font-size:12px;
+    font-weight:600;
+}
+
+.badge i{
+    margin-right:4px;
+}
+
+.badge-admin{
+    background:#0d6efd;
+    color:#fff;
+}
+
+.badge-owner{
+    background:#198754;
+    color:#fff;
+}
+
+.badge-inspector{
+    background:#6f42c1;
+    color:#fff;
+}
+
+.badge-staff{
+    background:#fd7e14;
+    color:#fff;
+}
+
+.badge-active{
+    background:#198754;
+    color:#fff;
+}
+
+.badge-inactive{
+    background:#dc3545;
+    color:#fff;
+}
+
+/* ===========================
+   ACTION BUTTONS
+=========================== */
+
+.action-buttons{
+    display:flex;
+    gap:8px;
+}
+
+.btn-action{
+    width:36px;
+    height:36px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    color:#fff;
+    text-decoration:none;
+    transition:.3s;
+}
+
+.btn-action:hover{
+    transform:translateY(-2px);
+}
+
+.btn-view{
+    background:#0dcaf0;
+}
+
+.btn-edit{
+    background:#ffc107;
+    color:#000;
+}
+
+.btn-reset{
+    background:#6c757d;
+}
+
+.btn-delete{
+    background:#dc3545;
+}
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+@media(max-width:768px){
+
+.page-header{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.table-header{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.search-box{
+    width:100%;
+}
+
+.action-buttons{
+    flex-wrap:wrap;
+}
+
+}
