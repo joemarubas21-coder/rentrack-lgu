@@ -132,13 +132,13 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
             echo '<div style="display:flex; flex-direction:column; gap:8px;">';
             foreach ($rows as $row) {
                 $status = $row['status'] ?? 'Draft';
-                $badgeBg = 'rgba(2,132,199,0.1)'; $badgeColor = '#0284c7';
+                $badgeBg = 'rgba(220,38,38,0.1)'; $badgeColor = '#dc2626';
                 if (strtolower($status)==='pending') { $badgeBg='rgba(217,119,6,0.15)'; $badgeColor='#d97706'; }
                 elseif (in_array(strtolower($status), ['approved','active'])) { $badgeBg='rgba(5,150,105,0.15)'; $badgeColor='#059669'; }
-                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #bae6fd; border-radius:12px; color:#0f172a; text-decoration:none; gap:10px;">';
+                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none; gap:10px; flex-wrap:wrap;">';
                 echo '<div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">';
-                echo '<div style="font-weight:700; font-size:13px; color:#0284c7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
-                echo '<div style="font-size:11px; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
+                echo '<div style="font-weight:700; font-size:13px; color:#dc2626; word-break:break-word;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
+                echo '<div style="font-size:11px; color:#64748b;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
                 echo '</div>';
                 echo '<span style="padding:4px 10px; border-radius:20px; font-size:10px; font-weight:700; background:'.$badgeBg.'; color:'.$badgeColor.'; text-transform:uppercase; flex-shrink:0;">'.htmlspecialchars($status).'</span>';
                 echo '</a>';
@@ -195,7 +195,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="theme-color" content="#0284c7">
+    <meta name="theme-color" content="#dc2626">
     <title>Edit Rental | RENTRACK LGU</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -208,20 +208,14 @@ try {
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         :root {
-            --bg-light: #f0f9ff;
-            --bg-card: #ffffff;
-            --card-border: #bae6fd;
-            --accent-blue: #0284c7;
-            --accent-blue-dark: #0369a1;
-            --accent-blue-light: #7dd3fc;
-            --blue-soft: #e0f2fe;
-            --text-primary: #0f172a;
-            --text-secondary: #334155;
-            --text-muted: #64748b;
-            --text-faint: #94a3b8;
+            --bg-light: #f8fafc; --bg-card: #ffffff; --card-border: #e2e8f0;
+            --accent-blue: #dc2626; --accent-blue-dark: #991b1b; --accent-blue-light: #f87171;
+            --blue-soft: #fee2e2;
+            --text-primary: #0f172a; --text-secondary: #334155;
+            --text-muted: #64748b; --text-faint: #94a3b8;
             --ok: #059669; --ok-bg: #d1fae5;
             --warn: #d97706; --warn-bg: #fef3c7;
-            --danger: #ef4444; --danger-bg: #fee2e2;
+            --danger: #dc2626; --danger-bg: #fee2e2;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -239,7 +233,7 @@ try {
             overflow-x: hidden; -webkit-text-size-adjust: 100%;
             -webkit-font-smoothing: antialiased;
         }
-        * { scrollbar-width: thin; scrollbar-color: rgba(2, 132, 199, 0.4) transparent; }
+        * { scrollbar-width: thin; scrollbar-color: rgba(220, 38, 38, 0.4) transparent; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
@@ -255,15 +249,15 @@ try {
         /* TOP OFFICIAL BAR */
         .official-header {
             width: 100%; display: flex; align-items: center; justify-content: space-between;
-            background: linear-gradient(90deg, #0c4a6e, #0369a1 55%, #0c4a6e);
-            border-bottom: 2px solid #0c4a6e;
+            background: linear-gradient(90deg, #991b1b, #dc2626 55%, #991b1b);
+            border-bottom: 2px solid #7f1d1d;
             padding: 6px 20px; padding-top: calc(6px + var(--safe-top));
             gap: 20px; position: relative; z-index: 110;
-            box-shadow: 0 2px 8px -2px rgba(2, 132, 199, 0.45);
+            box-shadow: 0 2px 8px -2px rgba(220, 38, 38, 0.45);
         }
         .official-header-left, .official-header-right-group {
             display: flex; align-items: center; gap: 12px;
-            color: #bae6fd; font-size: 11px; font-weight: 600;
+            color: #fecdd3; font-size: 11px; font-weight: 600;
         }
         .official-header-badge {
             background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
@@ -289,7 +283,7 @@ try {
         }
 
         /* STICKY HEADER */
-        .sticky-header { position: sticky; top: 0; z-index: 100; background: #ffffff; }
+        .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 18px; background: #ffffff;
@@ -301,15 +295,15 @@ try {
         .brand-logo { position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .brand-logo-ring {
             position: absolute; inset: -2px; border-radius: 50%;
-            border: 2px dashed rgba(2, 132, 199, 0.55);
+            border: 2px dashed rgba(220, 38, 38, 0.55);
             animation: spinRing 4s linear infinite;
         }
         .brand-logo-circle {
             width: 36px; height: 36px; border-radius: 50%;
-            background: linear-gradient(135deg, #0284c7, #0c4a6e);
+            background: linear-gradient(135deg, #dc2626, #991b1b);
             display: flex; align-items: center; justify-content: center;
             color: #fff; font-weight: 800; font-size: 13px; z-index: 2;
-            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
             animation: counterSpin 4s linear infinite;
         }
         .brand-text h2 { font-size: 14px; font-weight: 800; color: var(--accent-blue); line-height: 1.1; margin: 0; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.3px; }
@@ -318,7 +312,7 @@ try {
         .menu-toggle {
             display: none; width: 42px; height: 42px; border-radius: 10px;
             align-items: center; justify-content: center;
-            background: #f0f9ff; border: 1px solid var(--card-border);
+            background: #f8fafc; border: 1px solid var(--card-border);
             color: var(--accent-blue); cursor: pointer; font-size: 16px; flex-shrink: 0;
         }
 
@@ -350,7 +344,7 @@ try {
             transform: translateX(-50%) translateY(8px);
             min-width: 250px; background: #ffffff;
             border: 1px solid var(--card-border); border-radius: 12px;
-            box-shadow: 0 12px 30px rgba(2, 132, 199, 0.15);
+            box-shadow: 0 12px 30px rgba(220, 38, 38, 0.15);
             padding: 8px; opacity: 0; visibility: hidden;
             transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
             z-index: 200;
@@ -400,7 +394,7 @@ try {
         }
         .nav-icon .badge {
             position: absolute; top: -4px; right: -4px;
-            background: #ef4444; color: #fff;
+            background: #dc2626; color: #fff;
             font-size: 9px; font-weight: 700;
             min-width: 18px; height: 18px; padding: 0 4px;
             border-radius: 9px;
@@ -428,7 +422,7 @@ try {
             position: absolute; top: calc(100% + 12px); right: 0;
             background: #ffffff; border: 1px solid var(--card-border);
             border-radius: 14px; padding: 8px;
-            box-shadow: 0 16px 36px rgba(2, 132, 199, 0.15);
+            box-shadow: 0 16px 36px rgba(220, 38, 38, 0.15);
             opacity: 0; visibility: hidden;
             transform: translateY(-10px) scale(0.95);
             transition: all 0.25s ease; z-index: 60;
@@ -454,12 +448,12 @@ try {
         .hero-card {
             display: flex; justify-content: space-between; align-items: center; gap: 1rem;
             padding: 22px 26px; border-radius: 18px; color: #ffffff;
-            background: linear-gradient(135deg, #0284c7, #2563eb);
-            box-shadow: 0 8px 22px rgba(2, 132, 199, 0.2); margin-bottom: 18px;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            box-shadow: 0 8px 22px rgba(220, 38, 38, 0.2); margin-bottom: 18px;
             flex-wrap: wrap;
         }
         .hero-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: #ffffff; margin: 0; }
-        .hero-card p { color: #e0f2fe; font-size: 13.5px; margin-top: 4px; margin-bottom: 0; word-break: break-word; }
+        .hero-card p { color: #fee2e2; font-size: 13.5px; margin-top: 4px; margin-bottom: 0; word-break: break-word; }
         .tracking-chip {
             display: inline-block; margin-top: 8px;
             background: rgba(255,255,255,0.2); color: #ffffff;
@@ -479,24 +473,24 @@ try {
         .panel {
             background: var(--bg-card); border: 1px solid var(--card-border);
             border-radius: 18px; overflow: hidden; margin-bottom: 18px;
-            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.05);
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.05);
         }
         .panel-header {
-            padding: 16px 22px; border-bottom: 1px solid #bae6fd;
+            padding: 16px 22px; border-bottom: 1px solid #e2e8f0;
             font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: #0f172a;
             display: flex; align-items: center; gap: 10px; background: #f8fafc;
         }
-        .panel-header i { color: #0284c7; }
+        .panel-header i { color: #dc2626; }
         .panel-body { padding: 22px; }
 
         /* FORM SECTION */
         .form-section-label {
             font-size: 12px; font-weight: 800; text-transform: uppercase;
-            color: #0284c7; letter-spacing: 0.5px; margin: 22px 0 12px;
+            color: #dc2626; letter-spacing: 0.5px; margin: 22px 0 12px;
             display: flex; align-items: center; gap: 10px;
         }
         .form-section-label:first-child { margin-top: 0; }
-        .form-section-label::after { content: ""; flex: 1; height: 1px; background: #bae6fd; }
+        .form-section-label::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
 
         .form-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -507,43 +501,43 @@ try {
         .form-group label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
 
         .form-control, .form-select {
-            border: 1px solid #bae6fd; border-radius: 10px;
+            border: 1px solid #e2e8f0; border-radius: 10px;
             padding: 9px 14px; font-size: 13px; color: #0f172a;
             background: #f8fafc; width: 100%; transition: var(--transition); outline: none;
             font-family: inherit;
         }
         .form-control:focus, .form-select:focus {
-            border-color: #0284c7; background: #ffffff; box-shadow: 0 0 10px rgba(2, 132, 199, 0.15);
+            border-color: #dc2626; background: #ffffff; box-shadow: 0 0 10px rgba(220, 38, 38, 0.15);
         }
-        .form-control[readonly] { background: #e0f2fe; color: #0369a1; font-weight: 700; cursor: not-allowed; }
+        .form-control[readonly] { background: #fee2e2; color: #991b1b; font-weight: 700; cursor: not-allowed; }
 
         .form-actions {
             display: flex; justify-content: flex-end; gap: 10px;
-            margin-top: 24px; padding-top: 18px; border-top: 1px solid #bae6fd;
+            margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0;
             flex-wrap: wrap;
         }
         .btn-cancel {
-            padding: 10px 22px; border-radius: 999px; border: 1px solid #bae6fd;
-            background: #f0f9ff; color: #0284c7; font-weight: 700; font-size: 13px;
+            padding: 10px 22px; border-radius: 999px; border: 1px solid #e2e8f0;
+            background: #f8fafc; color: #dc2626; font-weight: 700; font-size: 13px;
             text-decoration: none; transition: var(--transition);
             display: inline-flex; align-items: center; gap: 6px;
         }
-        .btn-cancel:hover { background: #e0f2fe; }
+        .btn-cancel:hover { background: #fee2e2; }
         .btn-save {
             padding: 10px 24px; border-radius: 999px; border: none;
-            background: #0284c7; color: #fff; font-weight: 700; font-size: 13px;
+            background: #dc2626; color: #fff; font-weight: 700; font-size: 13px;
             cursor: pointer; transition: var(--transition);
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
             display: inline-flex; align-items: center; gap: 6px;
         }
-        .btn-save:hover { background: #0369a1; transform: translateY(-1px); }
+        .btn-save:hover { background: #991b1b; transform: translateY(-1px); }
 
         .dashboard-footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap; gap: 10px; }
 
         /* SEARCH MODAL */
         .search-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(3, 105, 161, 0.4); backdrop-filter: blur(10px);
+            background: rgba(153, 27, 27, 0.4); backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px); z-index: 9999;
             display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px;
             opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -552,13 +546,14 @@ try {
         .search-modal-content {
             width: 100%; max-width: 650px; background: #ffffff;
             border: 1px solid var(--card-border); border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(2, 132, 199, 0.2);
+            box-shadow: 0 25px 50px rgba(220, 38, 38, 0.2);
             overflow: hidden; transform: translateY(-20px) scale(0.98); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 85vh; display: flex; flex-direction: column;
         }
         .search-modal-overlay.active .search-modal-content { transform: translateY(0) scale(1); }
         .search-modal-header {
             display: flex; align-items: center; padding: 14px 18px;
-            border-bottom: 1px solid var(--card-border); background: #f8fafc;
+            border-bottom: 1px solid var(--card-border); background: #f8fafc; flex-shrink: 0;
         }
         .search-modal-header i.search-icon-main { font-size: 16px; color: var(--accent-blue); margin-right: 14px; }
         .search-modal-input { flex: 1; background: transparent; border: none; outline: none; color: #0f172a; font-size: 15px; font-weight: 600; }
@@ -568,22 +563,43 @@ try {
             cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
         }
         .search-modal-close:hover { background: var(--danger-bg); color: var(--danger); border-color: #fca5a5; }
-        .search-modal-body { padding: 16px; max-height: 380px; overflow-y: auto; }
+        .search-modal-body { padding: 16px; max-height: 380px; overflow-y: auto; flex: 1; }
         .search-shortcut-hint {
             display: flex; align-items: center; justify-content: space-between; padding: 12px 18px;
-            background: #f8fafc; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--text-muted);
+            background: #f8fafc; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--text-muted); flex-shrink: 0;
         }
         .search-shortcut-hint kbd {
             background: var(--blue-soft); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; color: var(--accent-blue-dark); font-family: inherit; font-weight: 700;
         }
 
+        /* AI ASSISTANT */
+        #aiAssistantWrapper {
+            position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right));
+            z-index: 1050; font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #aiToggleBtn {
+            width: 55px; height: 55px; border-radius: 50%;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border: none; color: #fff; font-size: 22px; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #aiChatWindow {
+            position: absolute; bottom: 70px; right: 0;
+            width: 350px; height: 480px;
+            background: #ffffff; border: 1px solid var(--card-border);
+            border-radius: 18px; box-shadow: 0 20px 40px rgba(220, 38, 38, 0.2);
+            display: none; flex-direction: column; overflow: hidden;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 1400px) { .nav-link { padding: 10px 8px; font-size: 12px; } }
+        
         @media (max-width: 1200px) {
             .top-navbar { padding: 10px 14px; padding-top: calc(10px + var(--safe-top)); gap: 10px; flex-wrap: wrap; min-height: 60px; }
             .nav-clock { display: none; }
             .profile-btn .info { display: none; }
-            .profile-btn { padding: 3px; }
+            .profile-btn { padding: 3px; gap: 0; }
             .menu-toggle { display: flex; }
             .search-wrapper { order: 5; width: 100%; padding: 0; margin: 4px 0; max-width: 100%; flex-basis: 100%; }
 
@@ -603,8 +619,8 @@ try {
             .mobile-drawer-header {
                 display: flex; align-items: center; justify-content: space-between;
                 padding: 16px 18px; padding-top: calc(16px + var(--safe-top));
-                background: linear-gradient(90deg, #0c4a6e, #0369a1 55%, #0c4a6e);
-                color: #fff; flex-shrink: 0; border-bottom: 2px solid #0c4a6e;
+                background: linear-gradient(90deg, #991b1b, #dc2626 55%, #991b1b);
+                color: #fff; flex-shrink: 0; border-bottom: 2px solid #7f1d1d;
             }
             .mobile-drawer-header .drawer-brand { display: flex; align-items: center; gap: 10px; }
             .mobile-drawer-header .drawer-brand-logo {
@@ -631,20 +647,23 @@ try {
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
-                position: static; left: auto; right: auto;
-                transform: none; opacity: 1; visibility: visible;
-                box-shadow: none; border: none;
+            /* FIX: Mobile Dropdown CSS Specificity */
+            .nav-dropdown {
+                position: static !important; left: auto !important; right: auto !important;
+                transform: none !important; opacity: 1 !important; visibility: visible !important;
+                box-shadow: none !important; border: none !important;
                 max-height: 0; overflow: hidden;
                 transition: max-height 0.3s ease, padding 0.2s ease;
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
+                width: 100% !important;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
-            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
+            .nav-item.open > .nav-dropdown,
+            .nav-item.align-right.open > .nav-dropdown {
+                max-height: 1000px !important;
+                padding: 8px 0 8px 16px !important;
+            }
+            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; display: flex; align-items: center; }
 
             .sidebar-overlay {
                 display: none; position: fixed; inset: 0;
@@ -652,9 +671,29 @@ try {
                 z-index: 1999;
                 backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
                 opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none;
             }
-            .sidebar-overlay.active { display: block; opacity: 1; }
-            .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
+            .sidebar-overlay.active { 
+                display: block; 
+                opacity: 1; 
+                pointer-events: auto; 
+            }
+
+            /* Notification dropdown mobile-friendly */
+            .notification-dropdown {
+                position: fixed;
+                top: 70px;
+                left: 12px;
+                right: 12px;
+                width: auto !important;
+                max-width: none;
+                transform: translateY(-10px) scale(0.98);
+            }
+            .notification-dropdown.show { transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 992px) {
+            .search-modal-overlay { padding-top: 8vh; }
         }
 
         @media (max-width: 768px) {
@@ -668,14 +707,49 @@ try {
             .form-actions { flex-direction: column-reverse; }
             .form-actions .btn-cancel, .form-actions .btn-save { width: 100%; justify-content: center; }
             .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
+
+            /* AI CHAT responsive */
+            #aiAssistantWrapper {
+                bottom: calc(18px + var(--safe-bottom));
+                right: calc(18px + var(--safe-right));
+            }
+            #aiToggleBtn { width: 52px; height: 52px; font-size: 20px; }
+            #aiChatWindow {
+                width: calc(100vw - 24px) !important;
+                max-width: 420px;
+                height: calc(100vh - 140px) !important;
+                max-height: 560px;
+                bottom: 66px;
+                right: -8px;
+                border-radius: 16px;
+            }
+
+            /* Search modal */
+            .search-modal-overlay { padding: 6vh 12px 12px; }
+            .search-modal-content { border-radius: 16px; }
+            .search-modal-header { padding: 14px 16px; }
+            .search-modal-body { padding: 14px; max-height: 55vh; }
+            .search-shortcut-hint { font-size: 10.5px; padding: 10px 14px; }
         }
+
         @media (max-width: 480px) {
             .content { padding: 12px 10px 22px; padding-bottom: calc(22px + var(--safe-bottom)); }
+            .profile-dropdown { width: calc(100vw - 24px); max-width: 280px; right: -8px; }
+            #aiChatWindow { height: calc(100vh - 130px) !important; max-height: 500px; }
         }
+
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
             .form-control, .form-select { font-size: 16px !important; }
             .search-container input, .search-modal-input { font-size: 16px !important; }
+            #aiChatInput { font-size: 16px !important; }
+        }
+
+        /* Touch-friendly */
+        @media (hover: none) and (pointer: coarse) {
+            .nav-link, .nav-dropdown a, .btn-save, .btn-cancel, .profile-dropdown .dropdown-item, .notif-drop-item {
+                -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
+            }
         }
     </style>
 </head>
@@ -704,7 +778,7 @@ try {
         <div class="sticky-header">
             <header class="top-navbar">
                 <div class="navbar-left">
-                    <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
                     <div class="nav-brand">
                         <div class="brand-logo">
                             <div class="brand-logo-ring"></div>
@@ -726,7 +800,7 @@ try {
                                 <span>Owner Portal</span>
                             </div>
                         </div>
-                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
                     <ul class="nav-menu">
@@ -811,7 +885,7 @@ try {
                                     <?php if ($unreadNotifCount > 0): ?>
                                         <span id="notifHeaderCount" style="font-size:10px; background:var(--blue-soft); color:var(--accent-blue-dark); padding:2px 8px; border-radius:10px;"><?php echo $unreadNotifCount; ?> New</span>
                                     <?php endif; ?>
-                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:2px 4px;">Clear</button>
+                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:6px 8px;">Clear</button>
                                 </div>
                             </div>
                             <div style="max-height:280px; overflow-y:auto;" id="notifListBody">
@@ -831,10 +905,10 @@ try {
                                             }
                                             $isUnread = (!isset($notification['is_read']) || $notification['is_read'] === false || $notification['is_read'] === '0' || $notification['is_read'] === 0);
                                         ?>
-                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:10px 14px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#f0f9ff' : '#fff'; ?>;">
-                                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:12px 16px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                                                 <strong style="font-size:12px; display:block; color:#0f172a;"><?php echo displayField($notification, ['title']); ?></strong>
-                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:#ef4444; border-radius:50%; display:inline-block;"></span><?php endif; ?>
+                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:#dc2626; border-radius:50%; display:inline-block; flex-shrink:0;"></span><?php endif; ?>
                                             </div>
                                             <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;"><?php echo displayField($notification, ['message','description']); ?></span>
                                             <span style="font-size:9.5px; color:#94a3b8; display:block; margin-top:4px;"><?php echo !empty($notification['created_at']) ? date('M d, Y h:i A', strtotime($notification['created_at'])) : ''; ?></span>
@@ -869,6 +943,8 @@ try {
                     </div>
                 </div>
             </header>
+
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
         <main class="content">
@@ -1007,11 +1083,11 @@ try {
         <div class="search-modal-content">
             <div class="search-modal-header">
                 <i class="fa-solid fa-magnifying-glass search-icon-main"></i>
-                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search by tracking number, business name, or property..." autocomplete="off">
+                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search records..." autocomplete="off">
                 <div class="search-modal-close" onclick="closeSearchModal()"><i class="fa-solid fa-xmark"></i></div>
             </div>
             <div class="search-modal-body" id="modalSearchResults">
-                <div style="text-align:center; padding:40px; color:#64748b; font-size:13px;">
+                <div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;">
                     <i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>
                     Type at least 2 characters to search records...
                 </div>
@@ -1024,34 +1100,32 @@ try {
     </div>
 
     <!-- AI ASSISTANT -->
-    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1060; font-family:'Plus Jakarta Sans', sans-serif;">
-        <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #0284c7, #2563eb); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(2, 132, 199, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
+    <div id="aiAssistantWrapper">
+        <button id="aiToggleBtn" title="Ask AI Assistant" aria-label="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
-        <div id="aiChatWindow" style="position:absolute; bottom:70px; right:0; width:350px; height:480px; background:#ffffff; border:1px solid var(--card-border); border-radius:18px; box-shadow:0 20px 40px rgba(2, 132, 199, 0.2); display:none; flex-direction:column; overflow:hidden;">
-            <div style="background:linear-gradient(135deg, #0284c7, #0369a1); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between;">
+        <div id="aiChatWindow">
+            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <i class="fa-solid fa-robot" style="font-size:16px; color:#7dd3fc;"></i>
+                    <i class="fa-solid fa-robot" style="font-size:16px; color:#fecdd3;"></i>
                     <div>
                         <strong style="font-size:14px; display:block; font-family:'Space Grotesk', sans-serif;">RENTRACK AI</strong>
-                        <span style="font-size:10px; color:#bae6fd;">Owner LGU Assistant</span>
+                        <span style="font-size:10px; color:#fecdd3;">Owner LGU Assistant</span>
                     </div>
                 </div>
-                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer; padding:4px;" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="aiChatBody" style="flex:1; padding:14px; overflow-y:auto; background:#f8fafc; display:flex; flex-direction:column; gap:10px; font-size:12.5px;">
-                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">
+                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">
                     Hello <?php echo htmlspecialchars($userName); ?>! Ask me about your rentals, payments, permits, or inspections.
                 </div>
             </div>
-            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px;">
-                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'How many rentals do I have?'..." style="flex:1; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
-                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
+            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px; flex-shrink:0;">
+                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'How many rentals do I have?'..." style="flex:1; min-width:0; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
+                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;" aria-label="Send"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
             </div>
         </div>
     </div>
-
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -1078,6 +1152,7 @@ try {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeDrawer();
+            closeSearchModal();
             document.querySelectorAll('.nav-item.has-dropdown.open').forEach(i => i.classList.remove('open'));
         }
     });
@@ -1122,7 +1197,7 @@ try {
                     document.getElementById('notifBadgeCount')?.remove();
                     document.getElementById('notifHeaderCount')?.remove();
                     const lb = document.getElementById('notifListBody');
-                    if (lb) lb.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8; font-size:12px;"><i class="fa-solid fa-check-double" style="font-size:20px; margin-bottom:8px; display:block; color:#0284c7;"></i>You\'re all caught up!</div>';
+                    if (lb) lb.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8; font-size:12px;"><i class="fa-solid fa-check-double" style="font-size:20px; margin-bottom:8px; display:block; color:var(--accent-blue);"></i>You\'re all caught up!</div>';
                 }
             });
     });
@@ -1167,7 +1242,7 @@ try {
     function closeSearchModal() {
         searchModalOverlay.classList.remove('active');
         modalSearchInput.value = '';
-        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
     }
     function closeSearchModalOnOutside(event) { if (event.target === searchModalOverlay) closeSearchModal(); }
 
@@ -1181,7 +1256,7 @@ try {
         clearTimeout(searchTimeout);
         let query = this.value.trim();
         if (query.length < 2) {
-            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
             return;
         }
         modalSearchResults.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-bottom:8px; color:var(--accent-blue);"></i><div>Searching records...</div></div>`;
@@ -1203,14 +1278,14 @@ try {
     aiToggleBtn?.addEventListener('click', () => {
         const isVisible = aiChatWindow.style.display === 'flex';
         aiChatWindow.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) aiChatInput.focus();
+        if (!isVisible) setTimeout(() => aiChatInput.focus(), 150);
     });
     aiCloseBtn?.addEventListener('click', () => { aiChatWindow.style.display = 'none'; });
 
     function sendAiMessage() {
         const text = aiChatInput.value.trim();
         if (!text) return;
-        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px;">${escapeHtml(text)}</div>`;
+        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px; word-wrap:break-word;">${escapeHtml(text)}</div>`;
         aiChatInput.value = '';
         aiChatBody.scrollTop = aiChatBody.scrollHeight;
         const loadingId = 'ai-loading-' + Date.now();
@@ -1221,7 +1296,7 @@ try {
             .then(res => res.json())
             .then(data => {
                 document.getElementById(loadingId).remove();
-                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">${data.reply}</div>`;
+                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">${data.reply}</div>`;
                 aiChatBody.scrollTop = aiChatBody.scrollHeight;
             })
             .catch(() => {
@@ -1245,7 +1320,7 @@ try {
             text: 'Are you sure you want to log out?',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#0284c7',
+            confirmButtonColor: '#dc2626',
             cancelButtonColor: '#64748b',
             confirmButtonText: 'Yes, Logout',
             background: '#ffffff', color: '#0f172a'

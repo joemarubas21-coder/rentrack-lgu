@@ -13,7 +13,6 @@ if ($_SESSION['role'] != "owner") {
 
 require_once("../config/db.php");
 
-/* Fallback kung wala pang safe_error() sa config/auth */
 if (!function_exists('safe_error')) {
     function safe_error($e) {
         error_log('[rental_requests] ' . $e->getMessage());
@@ -150,12 +149,12 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
                 $badgeBg = 'rgba(220,38,38,0.1)'; $badgeColor = '#dc2626';
                 if (strtolower($status)==='pending') { $badgeBg='rgba(217,119,6,0.15)'; $badgeColor='#d97706'; }
                 elseif (in_array(strtolower($status), ['approved','active'])) { $badgeBg='rgba(5,150,105,0.15)'; $badgeColor='#059669'; }
-                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none;">';
-                echo '<div style="display:flex; flex-direction:column; gap:4px;">';
-                echo '<div style="font-weight:700; font-size:14px; color:#dc2626;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
+                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none; flex-wrap:wrap;">';
+                echo '<div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">';
+                echo '<div style="font-weight:700; font-size:14px; color:#dc2626; word-break:break-word;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
                 echo '<div style="font-size:12px; color:#64748b;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
                 echo '</div>';
-                echo '<span style="padding:4px 10px; border-radius:20px; font-size:10px; font-weight:700; background:'.$badgeBg.'; color:'.$badgeColor.'; text-transform:uppercase;">'.htmlspecialchars($status).'</span>';
+                echo '<span style="padding:4px 10px; border-radius:20px; font-size:10px; font-weight:700; background:'.$badgeBg.'; color:'.$badgeColor.'; text-transform:uppercase; flex-shrink:0;">'.htmlspecialchars($status).'</span>';
                 echo '</a>';
             }
             echo '</div>';
@@ -245,7 +244,6 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
         body.drawer-open { overflow: hidden !important; }
         body.drawer-open #aiAssistantWrapper { display: none !important; }
 
@@ -292,7 +290,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
+        /* STICKY HEADER */
         .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
@@ -467,6 +465,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             font-size: 13px; font-weight: 800;
             display: inline-flex; align-items: center; gap: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            white-space: nowrap;
         }
 
         /* LEGEND */
@@ -474,9 +473,10 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             display: flex; flex-wrap: wrap; gap: 12px;
             padding: 10px 16px; background: #ffffff; border: 1px solid var(--card-border);
             border-radius: 12px; font-size: 12px; color: #475569; margin-bottom: 18px;
+            align-items: center;
         }
         .status-legend .legend-item { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-        .status-legend .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .status-legend .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
         .legend-dot.success { background: #10b981; }
         .legend-dot.warning { background: #f59e0b; }
         .legend-dot.danger { background: #dc2626; }
@@ -491,21 +491,23 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             padding: 16px 22px; border-bottom: 1px solid var(--card-border);
             font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: #0f172a;
             display: flex; justify-content: space-between; align-items: center; background: #f8fafc;
+            gap: 8px;
         }
         .badge-count {
             background: var(--blue-soft); color: var(--accent-blue);
             padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 800;
+            white-space: nowrap;
         }
 
         /* TABLES */
-        .table-responsive { overflow-x: auto; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-        table th { padding: 10px 16px; text-align: left; color: #64748b; font-size: 10.5px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+        table th { padding: 10px 16px; text-align: left; color: #64748b; font-size: 10.5px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
         table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
         table tbody tr:hover { background: #fef2f2; }
         table td strong { color: #0f172a; }
 
-        .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; display: inline-block; }
+        .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; display: inline-block; white-space: nowrap; }
         .status-badge.active { background: #d1fae5; color: #059669; }
         .status-badge.pending { background: #fef3c7; color: #d97706; }
         .status-badge.rejected { background: #ffe4e6; color: #dc2626; }
@@ -514,6 +516,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             display: inline-flex; align-items: center; justify-content: center; gap: 6px;
             padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border);
             background: #f8fafc; color: var(--accent-blue); text-decoration: none; font-weight: 700; font-size: 11.5px; transition: var(--transition);
+            min-height: 32px;
         }
         .btn-action:hover { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 
@@ -527,12 +530,12 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(153, 27, 27, 0.4); backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px); z-index: 9999;
-            display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh;
+            display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px;
             opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .search-modal-overlay.active { opacity: 1; visibility: visible; }
         .search-modal-content {
-            width: 90%; max-width: 650px; background: #ffffff;
+            width: 100%; max-width: 650px; background: #ffffff;
             border: 1px solid var(--card-border); border-radius: 20px;
             box-shadow: 0 25px 50px rgba(220, 38, 38, 0.2);
             overflow: hidden; transform: translateY(-20px) scale(0.98); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -541,31 +544,54 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         .search-modal-header {
             display: flex; align-items: center; padding: 16px 20px;
             border-bottom: 1px solid var(--card-border); background: #f8fafc;
+            gap: 12px;
         }
-        .search-modal-header i.search-icon-main { font-size: 16px; color: var(--accent-blue); margin-right: 14px; }
-        .search-modal-input { flex: 1; background: transparent; border: none; outline: none; color: #0f172a; font-size: 15px; font-weight: 600; }
+        .search-modal-header i.search-icon-main { font-size: 16px; color: var(--accent-blue); flex-shrink: 0; }
+        .search-modal-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #0f172a; font-size: 15px; font-weight: 600; }
         .search-modal-close {
             background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b;
-            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.2s ease;
+            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
         }
         .search-modal-close:hover { background: var(--danger-bg); color: var(--danger); border-color: #fca5a5; }
         .search-modal-body { padding: 20px; max-height: 380px; overflow-y: auto; }
         .search-shortcut-hint {
             display: flex; align-items: center; justify-content: space-between; padding: 12px 20px;
             background: #f8fafc; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--text-muted);
+            gap: 10px; flex-wrap: wrap;
         }
         .search-shortcut-hint kbd {
             background: var(--blue-soft); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; color: var(--accent-blue-dark); font-family: inherit; font-weight: 700;
         }
 
+        /* AI ASSISTANT */
+        #aiAssistantWrapper {
+            position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right));
+            z-index: 1050; font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #aiToggleBtn {
+            width: 55px; height: 55px; border-radius: 50%;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border: none; color: #fff; font-size: 22px; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #aiChatWindow {
+            position: absolute; bottom: 70px; right: 0;
+            width: 350px; height: 480px;
+            background: #ffffff; border: 1px solid var(--card-border);
+            border-radius: 18px; box-shadow: 0 20px 40px rgba(220, 38, 38, 0.2);
+            display: none; flex-direction: column; overflow: hidden;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 1400px) { .nav-link { padding: 10px 8px; font-size: 12px; } }
+
         @media (max-width: 1200px) {
             .top-navbar { padding: 10px 14px; padding-top: calc(10px + var(--safe-top)); gap: 10px; flex-wrap: wrap; min-height: 60px; }
             .nav-clock { display: none; }
             .profile-btn .info { display: none; }
-            .profile-btn { padding: 3px; }
+            .profile-btn { padding: 3px; gap: 0; }
             .menu-toggle { display: flex; }
             .search-wrapper { order: 5; width: 100%; padding: 0; margin: 4px 0; max-width: 100%; flex-basis: 100%; }
 
@@ -613,20 +639,23 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
-                position: static; left: auto; right: auto;
-                transform: none; opacity: 1; visibility: visible;
-                box-shadow: none; border: none;
+            /* FIX: Mobile Dropdown CSS Specificity */
+            .nav-dropdown {
+                position: static !important; left: auto !important; right: auto !important;
+                transform: none !important; opacity: 1 !important; visibility: visible !important;
+                box-shadow: none !important; border: none !important;
                 max-height: 0; overflow: hidden;
                 transition: max-height 0.3s ease, padding 0.2s ease;
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
+                width: 100% !important;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
-            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
+            .nav-item.open > .nav-dropdown,
+            .nav-item.align-right.open > .nav-dropdown {
+                max-height: 1000px !important;
+                padding: 8px 0 8px 16px !important;
+            }
+            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; display: flex; align-items: center; }
 
             .sidebar-overlay {
                 display: none; position: fixed; inset: 0;
@@ -641,22 +670,144 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                 opacity: 1; 
                 pointer-events: auto; 
             }
-            .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
+
+            /* Notification dropdown mobile-friendly */
+            .notification-dropdown {
+                position: fixed;
+                top: 70px;
+                left: 12px;
+                right: 12px;
+                width: auto !important;
+                max-width: none;
+                transform: translateY(-10px) scale(0.98);
+            }
+            .notification-dropdown.show { transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 992px) {
+            .search-modal-overlay { padding-top: 8vh; }
         }
 
         @media (max-width: 768px) {
-            .content { padding: 16px 14px 24px; padding-bottom: calc(24px + var(--safe-bottom)); }
+            .content { padding: 16px 12px 24px; padding-bottom: calc(24px + var(--safe-bottom)); }
             .hero-card { flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px 20px; }
             .hero-card h2 { font-size: 18px; }
+            .hero-card p { font-size: 12.5px; }
+            .pending-chip { padding: 6px 14px; font-size: 12px; }
             .panel-header { padding: 14px 16px; font-size: 13.5px; flex-wrap: wrap; gap: 8px; }
             .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
+
+            /* LEGEND STACK */
+            .status-legend {
+                padding: 12px 14px; font-size: 11.5px;
+                flex-direction: column; align-items: flex-start; gap: 8px;
+            }
+            .status-legend > span:first-child {
+                width: 100%; margin-bottom: 4px !important; margin-right: 0 !important;
+                display: block; padding-bottom: 6px; border-bottom: 1px solid var(--card-border);
+            }
+            .status-legend .legend-item { width: 100%; }
+
+            /* TABLE -> CARD VIEW */
+            .table-responsive { overflow: visible; }
+            table { display: block; }
+            table thead { display: none; }
+            table tbody { display: block; padding: 12px; }
+            table tr {
+                display: block;
+                background: #ffffff;
+                border: 1px solid var(--card-border);
+                border-radius: 14px;
+                margin-bottom: 12px;
+                padding: 14px;
+                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.04);
+            }
+            table tr:last-child { margin-bottom: 0; }
+            table tbody tr:hover { background: #ffffff; }
+            table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding: 8px 0;
+                border-bottom: 1px dashed #f1f5f9;
+                font-size: 13px;
+                text-align: right;
+            }
+            table td:first-child { padding-top: 0; }
+            table td:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+                margin-top: 8px;
+                padding-top: 12px;
+                border-top: 1px solid #f1f5f9;
+            }
+            table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                font-size: 10.5px;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: #64748b;
+                flex-shrink: 0;
+                text-align: left;
+            }
+            table td > * { text-align: right; }
+            table td strong { font-size: 13.5px; word-break: break-word; }
+            .btn-action { width: 100%; padding: 10px 14px; font-size: 13px; min-height: 44px; }
+            .empty-state { padding: 30px 16px; font-size: 12.5px; }
+            .empty-state i { font-size: 30px; }
+
+            /* AI CHAT responsive */
+            #aiAssistantWrapper {
+                bottom: calc(18px + var(--safe-bottom));
+                right: calc(18px + var(--safe-right));
+            }
+            #aiToggleBtn { width: 52px; height: 52px; font-size: 20px; }
+            #aiChatWindow {
+                width: calc(100vw - 24px) !important;
+                max-width: 420px;
+                height: calc(100vh - 140px) !important;
+                max-height: 560px;
+                bottom: 66px;
+                right: -8px;
+                border-radius: 16px;
+            }
+
+            /* Search modal */
+            .search-modal-overlay { padding: 6vh 12px 12px; }
+            .search-modal-content { border-radius: 16px; }
+            .search-modal-header { padding: 14px 16px; }
+            .search-modal-body { padding: 14px; max-height: 55vh; }
+            .search-shortcut-hint { font-size: 10.5px; padding: 10px 14px; }
         }
+
         @media (max-width: 480px) {
             .content { padding: 12px 10px 22px; padding-bottom: calc(22px + var(--safe-bottom)); }
+            .hero-card { padding: 16px 18px; border-radius: 14px; }
+            .hero-card h2 { font-size: 17px; }
+            .panel { border-radius: 14px; }
+            .profile-dropdown { width: calc(100vw - 24px); max-width: 280px; right: -8px; }
+
+            table tbody { padding: 10px; }
+            table tr { padding: 12px; }
+            table td { font-size: 12.5px; padding: 7px 0; }
+            table td::before { font-size: 10px; }
+
+            #aiChatWindow { height: calc(100vh - 130px) !important; max-height: 500px; }
         }
+
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
             .search-container input, .search-modal-input { font-size: 16px !important; }
+            #aiChatInput { font-size: 16px !important; }
+        }
+
+        /* Touch-friendly */
+        @media (hover: none) and (pointer: coarse) {
+            .nav-link, .nav-dropdown a, .btn-action, .profile-dropdown .dropdown-item, .notif-drop-item {
+                -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
+            }
         }
     </style>
 </head>
@@ -685,7 +836,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         <div class="sticky-header">
             <header class="top-navbar">
                 <div class="navbar-left">
-                    <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
                     <div class="nav-brand">
                         <div class="brand-logo">
                             <div class="brand-logo-ring"></div>
@@ -707,7 +858,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                                 <span>Owner Portal</span>
                             </div>
                         </div>
-                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
                     <ul class="nav-menu">
@@ -792,7 +943,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                                     <?php if ($unreadNotifCount > 0): ?>
                                         <span id="notifHeaderCount" style="font-size:10px; background:var(--blue-soft); color:var(--accent-blue-dark); padding:2px 8px; border-radius:10px;"><?php echo $unreadNotifCount; ?> New</span>
                                     <?php endif; ?>
-                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:2px 4px;">Clear</button>
+                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:6px 8px;">Clear</button>
                                 </div>
                             </div>
                             <div style="max-height:280px; overflow-y:auto;" id="notifListBody">
@@ -812,10 +963,10 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                                             }
                                             $isUnread = (!isset($notification['is_read']) || $notification['is_read'] === false || $notification['is_read'] === '0' || $notification['is_read'] === 0);
                                         ?>
-                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:10px 14px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
-                                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:12px 16px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                                                 <strong style="font-size:12px; display:block; color:#0f172a;"><?php echo displayField($notification, ['title']); ?></strong>
-                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:var(--accent-blue); border-radius:50%; display:inline-block;"></span><?php endif; ?>
+                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:var(--accent-blue); border-radius:50%; display:inline-block; flex-shrink:0;"></span><?php endif; ?>
                                             </div>
                                             <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;"><?php echo displayField($notification, ['message','description']); ?></span>
                                             <span style="font-size:9.5px; color:#94a3b8; display:block; margin-top:4px;"><?php echo !empty($notification['created_at']) ? date('M d, Y h:i A', strtotime($notification['created_at'])) : ''; ?></span>
@@ -851,7 +1002,6 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </header>
 
-            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
             <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
@@ -901,12 +1051,12 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                             <?php if (!empty($rentalRequests)): ?>
                                 <?php foreach ($rentalRequests as $row): ?>
                                     <tr>
-                                        <td><strong><?php echo h($row['tracking_no']); ?></strong></td>
-                                        <td><?php echo h($row['business_name']); ?></td>
-                                        <td><?php echo h($row['type_name'] ?? '—'); ?></td>
-                                        <td><?php echo h($row['barangay'] ?? '—'); ?></td>
-                                        <td><?php echo format_date($row['created_at'] ?? ''); ?></td>
-                                        <td><?php echo status_badge_html($row['status'] ?? 'Pending'); ?></td>
+                                        <td data-label="Tracking No."><strong><?php echo h($row['tracking_no']); ?></strong></td>
+                                        <td data-label="Business"><?php echo h($row['business_name']); ?></td>
+                                        <td data-label="Type"><?php echo h($row['type_name'] ?? '—'); ?></td>
+                                        <td data-label="Barangay"><?php echo h($row['barangay'] ?? '—'); ?></td>
+                                        <td data-label="Date Submitted"><?php echo format_date($row['created_at'] ?? ''); ?></td>
+                                        <td data-label="Status"><?php echo status_badge_html($row['status'] ?? 'Pending'); ?></td>
                                         <td>
                                             <a href="view_rental.php?id=<?php echo (int)$row['id']; ?>" class="btn-action" title="View Details">
                                                 <i class="fa-solid fa-eye"></i> View
@@ -939,11 +1089,11 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         <div class="search-modal-content">
             <div class="search-modal-header">
                 <i class="fa-solid fa-magnifying-glass search-icon-main"></i>
-                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search by tracking number, business name, or property..." autocomplete="off">
+                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search records..." autocomplete="off">
                 <div class="search-modal-close" onclick="closeSearchModal()"><i class="fa-solid fa-xmark"></i></div>
             </div>
             <div class="search-modal-body" id="modalSearchResults">
-                <div style="text-align:center; padding:40px; color:#64748b; font-size:13px;">
+                <div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;">
                     <i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>
                     Type at least 2 characters to search records...
                 </div>
@@ -956,12 +1106,12 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <!-- AI ASSISTANT -->
-    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1050; font-family:'Plus Jakarta Sans', sans-serif;">
-        <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #dc2626, #991b1b); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(220, 38, 38, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
+    <div id="aiAssistantWrapper">
+        <button id="aiToggleBtn" title="Ask AI Assistant" aria-label="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
-        <div id="aiChatWindow" style="position:absolute; bottom:70px; right:0; width:350px; height:480px; background:#ffffff; border:1px solid var(--card-border); border-radius:18px; box-shadow:0 20px 40px rgba(220, 38, 38, 0.2); display:none; flex-direction:column; overflow:hidden;">
-            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between;">
+        <div id="aiChatWindow">
+            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <i class="fa-solid fa-robot" style="font-size:16px; color:#fecdd3;"></i>
                     <div>
@@ -969,16 +1119,16 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                         <span style="font-size:10px; color:#fecdd3;">Owner LGU Assistant</span>
                     </div>
                 </div>
-                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer; padding:4px;" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="aiChatBody" style="flex:1; padding:14px; overflow-y:auto; background:#f8fafc; display:flex; flex-direction:column; gap:10px; font-size:12.5px;">
-                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">
+                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">
                     Hello <?php echo htmlspecialchars($userName); ?>! Ask me about your rentals, payments, permits, or inspections.
                 </div>
             </div>
-            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px;">
-                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'How many rentals do I have?'..." style="flex:1; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
-                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
+            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px; flex-shrink:0;">
+                <input type="text" id="aiChatInput" placeholder="Ask about your rentals..." style="flex:1; min-width:0; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
+                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;" aria-label="Send"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
             </div>
         </div>
     </div>
@@ -1097,7 +1247,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
     function closeSearchModal() {
         searchModalOverlay.classList.remove('active');
         modalSearchInput.value = '';
-        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
     }
     function closeSearchModalOnOutside(event) { if (event.target === searchModalOverlay) closeSearchModal(); }
 
@@ -1111,7 +1261,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         clearTimeout(searchTimeout);
         let query = this.value.trim();
         if (query.length < 2) {
-            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
             return;
         }
         modalSearchResults.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-bottom:8px; color:var(--accent-blue);"></i><div>Searching records...</div></div>`;
@@ -1133,14 +1283,14 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
     aiToggleBtn?.addEventListener('click', () => {
         const isVisible = aiChatWindow.style.display === 'flex';
         aiChatWindow.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) aiChatInput.focus();
+        if (!isVisible) setTimeout(() => aiChatInput.focus(), 150);
     });
     aiCloseBtn?.addEventListener('click', () => { aiChatWindow.style.display = 'none'; });
 
     function sendAiMessage() {
         const text = aiChatInput.value.trim();
         if (!text) return;
-        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px;">${escapeHtml(text)}</div>`;
+        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px; word-wrap:break-word;">${escapeHtml(text)}</div>`;
         aiChatInput.value = '';
         aiChatBody.scrollTop = aiChatBody.scrollHeight;
         const loadingId = 'ai-loading-' + Date.now();
@@ -1151,7 +1301,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             .then(res => res.json())
             .then(data => {
                 document.getElementById(loadingId).remove();
-                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">${data.reply}</div>`;
+                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">${data.reply}</div>`;
                 aiChatBody.scrollTop = aiChatBody.scrollHeight;
             })
             .catch(() => {

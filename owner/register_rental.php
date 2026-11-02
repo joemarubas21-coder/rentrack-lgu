@@ -638,19 +638,27 @@ if (tableExists($conn, 'notifications')) {
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
+            /* FIX: Inayos ang selector at idinagdag ang transform: none at width: 100% */
             .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
+            .nav-item .nav-dropdown,
+            .nav-item.align-right .nav-dropdown {
                 position: static; left: auto; right: auto;
-                transform: none; opacity: 1; visibility: visible;
+                transform: none !important; opacity: 1; visibility: visible;
                 box-shadow: none; border: none;
                 max-height: 0; overflow: hidden;
                 transition: max-height 0.3s ease, padding 0.2s ease;
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
+                width: 100%;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
+            .nav-item.open .nav-dropdown,
+            .nav-item.align-right.open .nav-dropdown { 
+                max-height: 600px !important; 
+                padding: 8px 0 8px 16px !important; 
+                transform: none !important;
+                width: 100%;
+                left: 0;
+            }
             .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
 
             .sidebar-overlay {

@@ -52,15 +52,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             $check_user = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
             $check_user->execute([':username' => $username]);
             
-            // Check existing email in Supabase
-            $check_email = $conn->prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
+            // Check existing email at kunin kung verified na
+            $check_email = $conn->prepare("SELECT id, is_verified FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
             $check_email->execute([':email' => $email]);
+            $existing_email_user = $check_email->fetch(PDO::FETCH_ASSOC);
 
+            // BAGONG LOGIC DITO
             if ($check_user->fetch()) {
-                $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The username <strong>'.htmlspecialchars($username).'</strong> is already taken.</div>';
-            } elseif ($check_email->fetch()) {
+                // I-check kung ang username ay pagmamay-ari ng existing email na hindi pa verified (para payagan siyang mag-update ng username)
+                $is_own_unverified_username = false;
+                if ($existing_email_user) {
+                    $check_own_username = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) AND id = :id LIMIT 1");
+                    $check_own_username->execute([':username' => $username, ':id' => $existing_email_user['id']]);
+                    if ($check_own_username->fetch()) {
+                        $is_own_unverified_username = true;
+                    }
+                }
+
+                if (!$is_own_unverified_username) {
+                    $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The username <strong>'.htmlspecialchars($username).'</strong> is already taken.</div>';
+                }
+            } 
+
+            // Kung existing ang email PERO VERIFIED NA, doon lang natin harangin
+            if (empty($message) && $existing_email_user && (int)$existing_email_user['is_verified'] === 1) {
                 $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The email address <strong>'.htmlspecialchars($email).'</strong> is already registered.</div>';
-            } else {
+            } 
+
+            // Kung wala pang error sa itaas, proceed sa save/update
+            if (empty($message)) {
                 // Hash Password & Generate Verification Token
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $token = bin2hex(random_bytes(32));
@@ -68,36 +88,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $status = 'Active';
                 $is_verified = 0;  // Needs email confirmation
 
-                $insert_stmt = $conn->prepare("
-                    INSERT INTO users (fullname, username, email, contact, password, role, status, verification_token, is_verified) 
-                    VALUES (:fullname, :username, :email, :contact, :password, :role, :status, :token, :is_verified)
-                ");
-
-                $execute_success = $insert_stmt->execute([
-                    ':fullname'   => $fullname,
-                    ':username'   => $username,
-                    ':email'      => $email,
-                    ':contact'    => $contact,
-                    ':password'   => $hashed_password,
-                    ':role'       => $role,
-                    ':status'     => $status,
-                    ':token'      => $token,
-                    ':is_verified'=> $is_verified
-                ]);
+                if ($existing_email_user) {
+                    // UPDATE EXISTING UNVERIFIED RECORD
+                    $existing_id = $existing_email_user['id'];
+                    $insert_stmt = $conn->prepare("
+                        UPDATE users 
+                        SET fullname = :fullname, username = :username, contact = :contact, 
+                            password = :password, verification_token = :token, is_verified = 0, status = :status 
+                        WHERE id = :id
+                    ");
+                    $execute_success = $insert_stmt->execute([
+                        ':fullname'   => $fullname,
+                        ':username'   => $username,
+                        ':contact'    => $contact,
+                        ':password'   => $hashed_password,
+                        ':token'      => $token,
+                        ':status'     => $status,
+                        ':id'         => $existing_id
+                    ]);
+                    $newUserId = $existing_id;
+                } else {
+                    // INSERT NEW RECORD
+                    $insert_stmt = $conn->prepare("
+                        INSERT INTO users (fullname, username, email, contact, password, role, status, verification_token, is_verified) 
+                        VALUES (:fullname, :username, :email, :contact, :password, :role, :status, :token, :is_verified)
+                    ");
+                    $execute_success = $insert_stmt->execute([
+                        ':fullname'   => $fullname,
+                        ':username'   => $username,
+                        ':email'      => $email,
+                        ':contact'    => $contact,
+                        ':password'   => $hashed_password,
+                        ':role'       => $role,
+                        ':status'     => $status,
+                        ':token'      => $token,
+                        ':is_verified'=> $is_verified
+                    ]);
+                    $newUserId = (int) $conn->lastInsertId();
+                }
 
                 if ($execute_success) {
-                    // ============================================
                     // ✅ I-LOG ANG REGISTRATION SA ACTIVITY LOGS
-                    // ============================================
-                    $newUserId = (int) $conn->lastInsertId();
-                    
-                    logActivity(
-                        $conn,
-                        $newUserId,
-                        "New owner registered: {$fullname} ({$username})",
-                        'owner',
-                        $_SERVER['REMOTE_ADDR'] ?? null
-                    );
+                    if (function_exists('logActivity')) {
+                        logActivity(
+                            $conn,
+                            $newUserId,
+                            "Owner registration (re-registered): {$fullname} ({$username})",
+                            'owner',
+                            $_SERVER['REMOTE_ADDR'] ?? null
+                        );
+                    }
 
                     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
                     $verify_link = site_base_url() . "/verify.php?token=" . $token;

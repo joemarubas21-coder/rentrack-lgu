@@ -136,10 +136,10 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
                 $badgeBg = 'rgba(220,38,38,0.1)'; $badgeColor = '#dc2626';
                 if (strtolower($status)==='pending') { $badgeBg='rgba(217,119,6,0.15)'; $badgeColor='#d97706'; }
                 elseif (in_array(strtolower($status), ['approved','active'])) { $badgeBg='rgba(5,150,105,0.15)'; $badgeColor='#059669'; }
-                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none; gap:10px;">';
+                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none; gap:10px; flex-wrap:wrap;">';
                 echo '<div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">';
-                echo '<div style="font-weight:700; font-size:13px; color:#dc2626; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
-                echo '<div style="font-size:11px; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
+                echo '<div style="font-weight:700; font-size:13px; color:#dc2626; word-break:break-word;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
+                echo '<div style="font-size:11px; color:#64748b;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
                 echo '</div>';
                 echo '<span style="padding:4px 10px; border-radius:20px; font-size:10px; font-weight:700; background:'.$badgeBg.'; color:'.$badgeColor.'; text-transform:uppercase; flex-shrink:0;">'.htmlspecialchars($status).'</span>';
                 echo '</a>';
@@ -652,13 +652,34 @@ if (tableExists($conn, 'notifications')) {
             background: var(--blue-soft); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; color: var(--accent-blue-dark); font-family: inherit; font-weight: 700;
         }
 
+        /* AI ASSISTANT */
+        #aiAssistantWrapper {
+            position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right));
+            z-index: 1050; font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #aiToggleBtn {
+            width: 55px; height: 55px; border-radius: 50%;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border: none; color: #fff; font-size: 22px; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #aiChatWindow {
+            position: absolute; bottom: 70px; right: 0;
+            width: 350px; height: 480px;
+            background: #ffffff; border: 1px solid var(--card-border);
+            border-radius: 18px; box-shadow: 0 20px 40px rgba(220, 38, 38, 0.2);
+            display: none; flex-direction: column; overflow: hidden;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 1400px) { .nav-link { padding: 10px 8px; font-size: 12px; } }
+        
         @media (max-width: 1200px) {
             .top-navbar { padding: 10px 14px; padding-top: calc(10px + var(--safe-top)); gap: 10px; flex-wrap: wrap; min-height: 60px; }
             .nav-clock { display: none; }
             .profile-btn .info { display: none; }
-            .profile-btn { padding: 3px; }
+            .profile-btn { padding: 3px; gap: 0; }
             .menu-toggle { display: flex; }
             .search-wrapper { order: 5; width: 100%; padding: 0; margin: 4px 0; max-width: 100%; flex-basis: 100%; }
 
@@ -706,20 +727,23 @@ if (tableExists($conn, 'notifications')) {
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
-                position: static; left: auto; right: auto;
-                transform: none; opacity: 1; visibility: visible;
-                box-shadow: none; border: none;
+            /* FIX: Mobile Dropdown CSS Specificity */
+            .nav-dropdown {
+                position: static !important; left: auto !important; right: auto !important;
+                transform: none !important; opacity: 1 !important; visibility: visible !important;
+                box-shadow: none !important; border: none !important;
                 max-height: 0; overflow: hidden;
                 transition: max-height 0.3s ease, padding 0.2s ease;
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
+                width: 100% !important;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
-            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
+            .nav-item.open > .nav-dropdown,
+            .nav-item.align-right.open > .nav-dropdown {
+                max-height: 1000px !important;
+                padding: 8px 0 8px 16px !important;
+            }
+            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; display: flex; align-items: center; }
 
             .sidebar-overlay {
                 display: none; position: fixed; inset: 0;
@@ -734,7 +758,22 @@ if (tableExists($conn, 'notifications')) {
                 opacity: 1; 
                 pointer-events: auto; 
             }
-            .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
+
+            /* Notification dropdown mobile-friendly */
+            .notification-dropdown {
+                position: fixed;
+                top: 70px;
+                left: 12px;
+                right: 12px;
+                width: auto !important;
+                max-width: none;
+                transform: translateY(-10px) scale(0.98);
+            }
+            .notification-dropdown.show { transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 992px) {
+            .search-modal-overlay { padding-top: 8vh; }
         }
 
         @media (max-width: 768px) {
@@ -744,13 +783,108 @@ if (tableExists($conn, 'notifications')) {
             .panel-header { padding: 12px 16px; font-size: 14px; }
             .panel-body { padding: 14px; }
             .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
+
+            /* TABLE -> CARD VIEW */
+            .table-responsive { overflow: visible; }
+            .table { display: block; }
+            .table thead { display: none; }
+            .table tbody { display: block; padding: 12px; }
+            .table tr {
+                display: block;
+                background: #ffffff;
+                border: 1px solid var(--card-border);
+                border-radius: 14px;
+                margin-bottom: 12px;
+                padding: 14px;
+                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.04);
+            }
+            .table tr:last-child { margin-bottom: 0; }
+            .table tbody tr:hover { background: #ffffff; }
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding: 8px 0;
+                border-bottom: 1px dashed #f1f5f9;
+                font-size: 13px;
+                text-align: right;
+            }
+            .table td:first-child { padding-top: 0; }
+            .table td:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+                margin-top: 8px;
+                padding-top: 12px;
+                border-top: 1px solid #f1f5f9;
+                justify-content: center;
+            }
+            .table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                font-size: 10.5px;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: #64748b;
+                flex-shrink: 0;
+                text-align: left;
+            }
+            .table td > * { text-align: right; }
+            .table td strong { font-size: 13.5px; word-break: break-word; }
+            .table td .btn { width: 100%; padding: 10px 14px; font-size: 13px; min-height: 44px; justify-content: center; }
+            
+            /* AI CHAT responsive */
+            #aiAssistantWrapper {
+                bottom: calc(18px + var(--safe-bottom));
+                right: calc(18px + var(--safe-right));
+            }
+            #aiToggleBtn { width: 52px; height: 52px; font-size: 20px; }
+            #aiChatWindow {
+                width: calc(100vw - 24px) !important;
+                max-width: 420px;
+                height: calc(100vh - 140px) !important;
+                max-height: 560px;
+                bottom: 66px;
+                right: -8px;
+                border-radius: 16px;
+            }
+
+            /* Modals */
+            .modal-dialog { margin: 10px auto; }
+            .modal-xl { max-width: calc(100vw - 20px); }
+            .modal-content { border-radius: 16px; }
+            .zoom-image-container { max-height: 60vh; }
+
+            /* Search modal */
+            .search-modal-overlay { padding: 6vh 12px 12px; }
+            .search-modal-content { border-radius: 16px; }
+            .search-modal-header { padding: 14px 16px; }
+            .search-modal-body { padding: 14px; max-height: 55vh; }
+            .search-shortcut-hint { font-size: 10.5px; padding: 10px 14px; }
         }
+
         @media (max-width: 480px) {
             .content { padding: 12px 10px 22px; padding-bottom: calc(22px + var(--safe-bottom)); }
+            .profile-dropdown { width: calc(100vw - 24px); max-width: 280px; right: -8px; }
+            #aiChatWindow { height: calc(100vh - 130px) !important; max-height: 500px; }
+
+            .table tbody { padding: 10px; }
+            .table tr { padding: 12px; }
+            .table td { font-size: 12.5px; padding: 7px 0; }
+            .table td::before { font-size: 10px; }
         }
+
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
             .search-container input, .search-modal-input, .form-control, .form-select { font-size: 16px !important; }
+            #aiChatInput { font-size: 16px !important; }
+        }
+
+        /* Touch-friendly */
+        @media (hover: none) and (pointer: coarse) {
+            .nav-link, .nav-dropdown a, .btn-primary-custom, .profile-dropdown .dropdown-item, .notif-drop-item {
+                -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
+            }
         }
     </style>
 </head>
@@ -781,7 +915,7 @@ if (tableExists($conn, 'notifications')) {
         <div class="sticky-header">
             <header class="top-navbar">
                 <div class="navbar-left">
-                    <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
                     <div class="nav-brand">
                         <div class="brand-logo">
                             <div class="brand-logo-ring"></div>
@@ -803,7 +937,7 @@ if (tableExists($conn, 'notifications')) {
                                 <span>Owner Portal</span>
                             </div>
                         </div>
-                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
                     <ul class="nav-menu">
@@ -888,7 +1022,7 @@ if (tableExists($conn, 'notifications')) {
                                     <?php if ($unreadNotifCount > 0): ?>
                                         <span id="notifHeaderCount" style="font-size:10px; background:var(--blue-soft); color:var(--accent-blue-dark); padding:2px 8px; border-radius:10px;"><?php echo $unreadNotifCount; ?> New</span>
                                     <?php endif; ?>
-                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:2px 4px;">Clear</button>
+                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:6px 8px;">Clear</button>
                                 </div>
                             </div>
                             <div style="max-height:280px; overflow-y:auto;" id="notifListBody">
@@ -909,10 +1043,10 @@ if (tableExists($conn, 'notifications')) {
                                             }
                                             $isUnread = (!isset($notification['is_read']) || $notification['is_read'] === false || $notification['is_read'] === '0' || $notification['is_read'] === 0);
                                         ?>
-                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:10px 14px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
-                                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:12px 16px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                                                 <strong style="font-size:12px; display:block; color:#0f172a;"><?php echo displayField($notification, ['title']); ?></strong>
-                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:var(--accent-blue); border-radius:50%; display:inline-block;"></span><?php endif; ?>
+                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:var(--accent-blue); border-radius:50%; display:inline-block; flex-shrink:0;"></span><?php endif; ?>
                                             </div>
                                             <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;"><?php echo displayField($notification, ['message','description']); ?></span>
                                             <span style="font-size:9.5px; color:#94a3b8; display:block; margin-top:4px;"><?php echo !empty($notification['created_at']) ? date('M d, Y h:i A', strtotime($notification['created_at'])) : ''; ?></span>
@@ -948,7 +1082,6 @@ if (tableExists($conn, 'notifications')) {
                 </div>
             </header>
 
-            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
             <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
@@ -1029,7 +1162,7 @@ if (tableExists($conn, 'notifications')) {
                             </div>
 
                             <div class="col-12 text-end pt-2">
-                                <button type="button" id="btnOpenPaymentModal" class="btn-primary-custom">
+                                <button type="button" id="btnOpenPaymentModal" class="btn-primary-custom w-100 w-md-auto">
                                     <i class="fa-solid fa-paper-plane"></i> Submit Renewal Online
                                 </button>
                                 <button type="submit" name="submit_renewal" id="realSubmitBtn" style="display: none;"></button>
@@ -1093,24 +1226,24 @@ if (tableExists($conn, 'notifications')) {
                                     }
                                 ?>
                                 <tr>
-                                    <td><?php echo date('M d, Y h:i A', strtotime($row['created_at'])); ?></td>
-                                    <td>
+                                    <td data-label="Request Date"><?php echo date('M d, Y h:i A', strtotime($row['created_at'])); ?></td>
+                                    <td data-label="Property">
                                         <strong><?php echo h($bizName); ?></strong><br>
                                         <small style="color:#64748b;"><?php echo h($row['tracking_no']); ?></small>
                                     </td>
-                                    <td><?php echo h($row['document_type']); ?></td>
-                                    <td>
+                                    <td data-label="Document Type"><?php echo h($row['document_type']); ?></td>
+                                    <td data-label="Permit No.">
                                         <?php if ($linkedPermitNo): ?>
                                             <span style="font-family:monospace; font-weight:700; color:var(--accent-blue-dark); background:var(--blue-soft); padding:3px 10px; border-radius:6px; font-size:11.5px; display:inline-block;"><?php echo h($linkedPermitNo); ?></span>
                                         <?php else: ?>
                                             <span style="color:#94a3b8; font-style:italic; font-size:11px;">—</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-label="Expiry Date">
                                         <strong style="color:var(--accent-blue);"><?php echo h($displayExpiry); ?></strong><br>
                                         <?php echo $expiryBadge; ?>
                                     </td>
-                                    <td>
+                                    <td data-label="Attachment">
                                         <?php if (!empty($row['supporting_file'])): ?>
                                             <button type="button" class="btn btn-sm btn-outline-primary open-view-file-modal" style="font-size:11px; border-radius:8px; padding:4px 10px; color:var(--accent-blue); border-color:var(--card-border);"
                                                     data-file="../uploads/renewals/<?php echo h($row['supporting_file']); ?>"
@@ -1121,7 +1254,7 @@ if (tableExists($conn, 'notifications')) {
                                             <span style="color:#94a3b8;">No File</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center" data-label="Status">
                                         <?php if ($st === 'approved'): ?>
                                             <span class="badge-custom badge-success"><i class="fa-solid fa-check"></i> Approved &amp; Renewed</span>
                                         <?php elseif ($st === 'rejected'): ?>
@@ -1155,11 +1288,11 @@ if (tableExists($conn, 'notifications')) {
         <div class="search-modal-content">
             <div class="search-modal-header">
                 <i class="fa-solid fa-magnifying-glass search-icon-main"></i>
-                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search by tracking number, business name..." autocomplete="off">
+                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search records..." autocomplete="off">
                 <div class="search-modal-close" onclick="closeSearchModal()"><i class="fa-solid fa-xmark"></i></div>
             </div>
             <div class="search-modal-body" id="modalSearchResults">
-                <div style="text-align:center; padding:40px; color:#64748b; font-size:13px;">
+                <div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;">
                     <i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>
                     Type at least 2 characters to search records...
                 </div>
@@ -1172,12 +1305,12 @@ if (tableExists($conn, 'notifications')) {
     </div>
 
     <!-- AI ASSISTANT -->
-    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1050; font-family:'Plus Jakarta Sans', sans-serif;">
-        <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #dc2626, #991b1b); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(220, 38, 38, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
+    <div id="aiAssistantWrapper">
+        <button id="aiToggleBtn" title="Ask AI Assistant" aria-label="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
-        <div id="aiChatWindow" style="position:absolute; bottom:70px; right:0; width:350px; height:480px; background:#ffffff; border:1px solid var(--card-border); border-radius:18px; box-shadow:0 20px 40px rgba(220, 38, 38, 0.2); display:none; flex-direction:column; overflow:hidden;">
-            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between;">
+        <div id="aiChatWindow">
+            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <i class="fa-solid fa-robot" style="font-size:16px; color:#fecdd3;"></i>
                     <div>
@@ -1185,16 +1318,16 @@ if (tableExists($conn, 'notifications')) {
                         <span style="font-size:10px; color:#fecdd3;">Owner LGU Assistant</span>
                     </div>
                 </div>
-                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer; padding:4px;" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="aiChatBody" style="flex:1; padding:14px; overflow-y:auto; background:#f8fafc; display:flex; flex-direction:column; gap:10px; font-size:12.5px;">
-                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">
+                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">
                     Hello <?php echo htmlspecialchars($userName); ?>! Ask me about your renewals, permits, rentals, or payments.
                 </div>
             </div>
-            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px;">
-                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'Any pending renewals?'..." style="flex:1; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
-                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
+            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px; flex-shrink:0;">
+                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'Any pending renewals?'..." style="flex:1; min-width:0; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
+                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;" aria-label="Send"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
             </div>
         </div>
     </div>
@@ -1229,10 +1362,10 @@ if (tableExists($conn, 'notifications')) {
                         Once you proceed, your renewal request will be forwarded to the Treasurer / LGU Staff for verification and processing.
                     </p>
                 </div>
-                <div class="modal-footer border-top-0 p-3 bg-light d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-light text-secondary border fw-semibold px-3 py-2" data-bs-dismiss="modal" style="border-radius: 10px; font-size: 13px;">Cancel</button>
-                    <button type="button" id="btnConfirmProceed" class="btn btn-primary fw-bold px-4 py-2" style="border-radius: 10px; font-size: 13px; background: var(--accent-blue); border: none;">
-                        <i class="fa-solid fa-check-circle me-1"></i> I Understand, Submit Renewal
+                <div class="modal-footer border-top-0 p-3 bg-light d-flex justify-content-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-light text-secondary border fw-semibold px-3 py-2 flex-grow-1 flex-md-grow-0" data-bs-dismiss="modal" style="border-radius: 10px; font-size: 13px;">Cancel</button>
+                    <button type="button" id="btnConfirmProceed" class="btn btn-primary fw-bold px-4 py-2 flex-grow-1 flex-md-grow-0" style="border-radius: 10px; font-size: 13px; background: var(--accent-blue); border: none;">
+                        <i class="fa-solid fa-check-circle me-1"></i> Submit Renewal
                     </button>
                 </div>
             </div>
@@ -1259,7 +1392,7 @@ if (tableExists($conn, 'notifications')) {
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
-                <div class="modal-body p-2 p-md-3 text-center" style="min-height: 450px; display: flex; align-items: center; justify-content: center; background: #0f172a;">
+                <div class="modal-body p-2 p-md-3 text-center" style="min-height: 300px; display: flex; align-items: center; justify-content: center; background: #0f172a;">
                     <div id="filePreviewContainer" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
@@ -1382,7 +1515,7 @@ if (tableExists($conn, 'notifications')) {
     function closeSearchModal() {
         searchModalOverlay.classList.remove('active');
         modalSearchInput.value = '';
-        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
     }
     function closeSearchModalOnOutside(event) { if (event.target === searchModalOverlay) closeSearchModal(); }
 
@@ -1395,7 +1528,7 @@ if (tableExists($conn, 'notifications')) {
         clearTimeout(searchTimeout);
         let query = this.value.trim();
         if (query.length < 2) {
-            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
             return;
         }
         modalSearchResults.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-bottom:8px; color:var(--accent-blue);"></i><div>Searching records...</div></div>`;
@@ -1417,14 +1550,14 @@ if (tableExists($conn, 'notifications')) {
     aiToggleBtn?.addEventListener('click', () => {
         const isVisible = aiChatWindow.style.display === 'flex';
         aiChatWindow.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) aiChatInput.focus();
+        if (!isVisible) setTimeout(() => aiChatInput.focus(), 150);
     });
     aiCloseBtn?.addEventListener('click', () => { aiChatWindow.style.display = 'none'; });
 
     function sendAiMessage() {
         const text = aiChatInput.value.trim();
         if (!text) return;
-        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px;">${escapeHtml(text)}</div>`;
+        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px; word-wrap:break-word;">${escapeHtml(text)}</div>`;
         aiChatInput.value = '';
         aiChatBody.scrollTop = aiChatBody.scrollHeight;
         const loadingId = 'ai-loading-' + Date.now();
@@ -1435,7 +1568,7 @@ if (tableExists($conn, 'notifications')) {
             .then(res => res.json())
             .then(data => {
                 document.getElementById(loadingId).remove();
-                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">${data.reply}</div>`;
+                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">${data.reply}</div>`;
                 aiChatBody.scrollTop = aiChatBody.scrollHeight;
             })
             .catch(() => {
@@ -1530,7 +1663,7 @@ if (tableExists($conn, 'notifications')) {
                     }
                 } else if (fileExt === 'pdf') {
                     imageZoomControls.classList.add('d-none');
-                    filePreviewContainer.innerHTML = `<iframe src="${filePath}" style="width:100%; height:70vh; border:none; border-radius:12px; background:#fff;"></iframe>`;
+                    filePreviewContainer.innerHTML = `<iframe src="${filePath}" style="width:100%; height:60vh; border:none; border-radius:12px; background:#fff;"></iframe>`;
                 } else {
                     imageZoomControls.classList.add('d-none');
                     filePreviewContainer.innerHTML = `<div class="p-5 text-center text-white"><i class="fa-solid fa-file-lines display-3 text-secondary mb-3"></i><h5>Preview not supported</h5><a href="${filePath}" target="_blank" class="btn btn-primary mt-2" style="background: var(--accent-blue); border: none;"><i class="fa-solid fa-download me-1"></i> Download File</a></div>`;
