@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                     $mail->Username   = env_value('MAIL_USERNAME', '');
                     $mail->Password   = env_value('MAIL_PASSWORD', '');
                     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                    $mail->Port       = 587;
+                    $mail->Port       = 443; // <--- BINAGO SA 443
 
                     $mail->setFrom(env_value('MAIL_USERNAME', ''), 'RENTRACK LGU');
                     $mail->addAddress($email, $user['fullname']);
