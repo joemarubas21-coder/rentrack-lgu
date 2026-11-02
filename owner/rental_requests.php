@@ -13,6 +13,14 @@ if ($_SESSION['role'] != "owner") {
 
 require_once("../config/db.php");
 
+/* Fallback kung wala pang safe_error() sa config/auth */
+if (!function_exists('safe_error')) {
+    function safe_error($e) {
+        error_log('[rental_requests] ' . $e->getMessage());
+        return 'Something went wrong. Please try again.';
+    }
+}
+
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 $userName = $_SESSION['fullname'] ?? 'Owner';
 $userInitial = strtoupper(substr($userName, 0, 1));
@@ -237,7 +245,9 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        body.drawer-open { overflow: hidden !important; touch-action: none; }
+        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
+        body.drawer-open { overflow: hidden !important; }
+        body.drawer-open #aiAssistantWrapper { display: none !important; }
 
         .main-wrapper {
             display: flex; flex-direction: column;
@@ -282,8 +292,8 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER */
-        .sticky-header { position: sticky; top: 0; z-index: 100; background: #ffffff; }
+        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
+        .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 18px; background: #ffffff;
@@ -624,8 +634,13 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                 z-index: 1999;
                 backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
                 opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none;
             }
-            .sidebar-overlay.active { display: block; opacity: 1; }
+            .sidebar-overlay.active { 
+                display: block; 
+                opacity: 1; 
+                pointer-events: auto; 
+            }
             .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
         }
 
@@ -835,6 +850,9 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 </div>
             </header>
+
+            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
         <main class="content">
@@ -938,7 +956,7 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <!-- AI ASSISTANT -->
-    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1060; font-family:'Plus Jakarta Sans', sans-serif;">
+    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1050; font-family:'Plus Jakarta Sans', sans-serif;">
         <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #dc2626, #991b1b); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(220, 38, 38, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
@@ -964,8 +982,6 @@ $rentalRequests = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </div>
-
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>

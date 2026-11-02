@@ -683,7 +683,9 @@ function statusClass($status) {
         ::-webkit-scrollbar-track { background: transparent; border-radius: 20px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        body.drawer-open { overflow: hidden !important; touch-action: none; }
+        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
+        body.drawer-open { overflow: hidden !important; }
+        body.drawer-open #aiAssistantWrapper { display: none !important; }
 
         .page-container {
             display: flex; flex-direction: column;
@@ -748,7 +750,8 @@ function statusClass($status) {
             background: var(--bg-light);
         }
 
-        .sticky-header { position: sticky; top: 0; z-index: 100; background: #ffffff; }
+        /* FIX: Itinaas ang z-index para manaig sa overlay at makapasok ang drawer sa tamang stacking context */
+        .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
 
         /* ==============================================
            3. TOP NAVBAR
@@ -1187,18 +1190,6 @@ function statusClass($status) {
         }
 
         @media (max-width: 1200px) {
-
-                 .sticky-header {
-                z-index: 2000 !important;
-            }
-            .main-nav-bar {
-                z-index: 2001 !important;
-            }
-            .sidebar-overlay {
-                z-index: 1999 !important;
-            }
-
-
             .top-navbar {
                 padding: 10px 14px;
                 padding-top: calc(10px + var(--safe-top));
@@ -1216,6 +1207,7 @@ function statusClass($status) {
             }
             .search-container { max-width: 100%; }
 
+            /* Drawer position fixed - Z-index 2000 para manaig sa lahat ng elements sa loob ng sticky header */
             .main-nav-bar {
                 position: fixed; top: 0; left: -100%;
                 width: 85vw; max-width: 320px;
@@ -1288,6 +1280,7 @@ function statusClass($status) {
             .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
             .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
 
+            /* Overlay z-index 1999. Nasa ilalim ito ng drawer (2000) pero nasa ibabaw ng navbar (1000) */
             .sidebar-overlay {
                 display: none; position: fixed; inset: 0;
                 background: rgba(0,0,0,0.55);
@@ -1295,8 +1288,13 @@ function statusClass($status) {
                 backdrop-filter: blur(3px);
                 -webkit-backdrop-filter: blur(3px);
                 opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none; /* I-disable ang clicks kapag sarado */
             }
-            .sidebar-overlay.active { display: block; opacity: 1; }
+            .sidebar-overlay.active { 
+                display: block; 
+                opacity: 1; 
+                pointer-events: auto; /* Enable clicks kapag bukas */
+            }
 
             .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
             .profile-dropdown { width: 220px; }
@@ -1536,6 +1534,9 @@ function statusClass($status) {
                     </div>
                 </div>
             </header>
+
+            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
         <main class="content">
@@ -1899,7 +1900,7 @@ function statusClass($status) {
     </div>
 
     <!-- FLOATING AI ASSISTANT WIDGET -->
-    <div id="aiAssistantWrapper" style="position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right)); z-index: 1060; font-family: 'Plus Jakarta Sans', sans-serif;">
+    <div id="aiAssistantWrapper" style="position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right)); z-index: 1050; font-family: 'Plus Jakarta Sans', sans-serif;">
         <button id="aiToggleBtn" style="width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, #dc2626, #991b1b); border: none; color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4); display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease;" title="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
@@ -1934,9 +1935,6 @@ function statusClass($status) {
             </div>
         </div>
     </div>
-
-    <!-- SIDEBAR OVERLAY (mobile drawer) -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2128,7 +2126,7 @@ function statusClass($status) {
         profileDropdown.classList.toggle('show');
     });
 
-    if (notifDropdown) notifDropdown.addEventListener('click', (e) => e.stopPropagation());
+       if (notifDropdown) notifDropdown.addEventListener('click', (e) => e.stopPropagation());
 
     document.addEventListener('click', () => {
         profileDropdown?.classList.remove('show');
