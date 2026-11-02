@@ -17,7 +17,7 @@ require_once("../config/db.php");
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 $userName = isset($_SESSION['fullname']) && !empty(trim($_SESSION['fullname']))
     ? trim($_SESSION['fullname'])
-    : 'Owner';  // raw value; i-escape lang sa output (iwas double-escape)
+    : 'Owner';
 $userInitial = htmlspecialchars(mb_strtoupper(mb_substr(trim($userName), 0, 1)), ENT_QUOTES, 'UTF-8');
 
 $uploadSuccess = $_SESSION['flash_success'] ?? '';
@@ -75,7 +75,6 @@ if (!columnExists($conn, 'payments', 'reference_no')) {
     elseif (columnExists($conn, 'payments', 'or_number')) $refColumnName = 'or_number';
 }
 
-/* Fallback kung wala pang safe_error() sa config */
 if (!function_exists('safe_error')) {
     function safe_error($e) {
         error_log('[payments] ' . $e->getMessage());
@@ -83,7 +82,6 @@ if (!function_exists('safe_error')) {
     }
 }
 
-/* Fallback content check kung wala sa config (MIME check gamit ang finfo) */
 if (!function_exists('upload_content_ok')) {
     function upload_content_ok($tmp, $ext) {
         $map = ['jpg' => ['image/jpeg'], 'jpeg' => ['image/jpeg'], 'png' => ['image/png'], 'pdf' => ['application/pdf']];
@@ -95,7 +93,6 @@ if (!function_exists('upload_content_ok')) {
     }
 }
 
-/* CSRF TOKEN */
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -111,9 +108,6 @@ function requirePostCsrf() {
     }
 }
 
-/* PAYMENT CHANNEL DETAILS
-   Palitan ng tunay na detalye ng LGU. Para hindi na galawin ang code, gumawa ng
-   config/payment_channels.php na nagre-return ng array na may parehong keys. */
 $payCfg = [
     'gcash_name'      => 'LGU RENTRACK TREASURY',
     'gcash_no'        => '0917-123-4567',
@@ -138,7 +132,6 @@ function methodLabel($method) {
     return $m !== '' ? ucfirst($m) : 'N/A';
 }
 
-/* Abisuhan ang staff kapag may bagong isinumiteng payment proof */
 function notifyStaffNewPayment($conn, $ownerName, $bizName, $amount, $ref) {
     try {
         if (!tableExists($conn, 'notifications') || !columnExists($conn, 'users', 'role')) return;
@@ -167,7 +160,6 @@ function notifyStaffNewPayment($conn, $ownerName, $bizName, $amount, $ref) {
     }
 }
 
-/* MARK NOTIF (POST + CSRF) */
 if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'mark_notif_read') {
     requirePostCsrf();
     $notifId = (int) ($_POST['id'] ?? 0);
@@ -181,7 +173,6 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'mark_notif_read') {
     exit;
 }
 
-/* CLEAR NOTIFS */
 if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'clear_notifs') {
     requirePostCsrf();
     if ($userId > 0 && tableExists($conn, 'notifications')) {
@@ -194,7 +185,6 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'clear_notifs') {
     exit;
 }
 
-/* AI ASSISTANT */
 if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'ai_chat') {
     header('Content-Type: application/json; charset=utf-8');
     $question = trim(strtolower($_GET['msg'] ?? ''));
@@ -243,7 +233,6 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'ai_chat') {
     exit;
 }
 
-/* AJAX SEARCH */
 if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
     $query = trim($_GET['q'] ?? '');
     if (strlen($query) >= 2 && tableExists($conn, 'rentals')) {
@@ -277,7 +266,6 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
     exit;
 }
 
-/* PAYMENT PROOF UPLOAD */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'])) {
     $rentalId       = (int)($_POST['rental_id'] ?? 0);
     $paymentPurpose = trim($_POST['payment_purpose'] ?? 'Permit Renewal');
@@ -294,7 +282,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
     $destination = '';
     $dbFilePath = '';
 
-    /* 1) CSRF + basic validation */
     if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)($_POST['csrf_token'] ?? ''))) {
         $err = 'Your session expired. Please refresh the page and try again.';
     } elseif ($rentalId <= 0 || $amountRaw === '' || $paymentMethod === '' || $referenceNo === '' || $paymentDate === '') {
@@ -316,7 +303,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 2) File presence / size */
     if ($err === '') {
         $fileErr = $_FILES['proof_file']['error'] ?? UPLOAD_ERR_NO_FILE;
         if (!isset($_FILES['proof_file']) || $fileErr === UPLOAD_ERR_NO_FILE) {
@@ -328,7 +314,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 3) OWNERSHIP ng rental */
     if ($err === '') {
         try {
             $checkOwner = $conn->prepare("SELECT id, business_name, rental_name, tracking_no FROM rentals WHERE id = :rid AND user_id = :uid AND is_deleted = '0' LIMIT 1");
@@ -341,7 +326,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 4) Renewal link: dapat sa kanya, sa parehong rental, at pending pa */
     if ($err === '') {
         if ($paymentPurpose !== 'Permit Renewal') $renewalId = 0;
         if (tableExists($conn, 'permit_renewals')) {
@@ -364,7 +348,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 5) DUPLICATE reference (buong sistema, hindi lang per rental). Pwede ulit kung na-reject/cancel na */
     if ($err === '') {
         try {
             $dupCols = [$refColumnName];
@@ -385,7 +368,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 6) File upload: LANG kapag pasado na ang lahat ng checks */
     if ($err === '') {
         $fileTmp = $_FILES['proof_file']['tmp_name'];
         $fileExt = strtolower(pathinfo($_FILES['proof_file']['name'], PATHINFO_EXTENSION));
@@ -403,7 +385,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         }
     }
 
-    /* 7) SAVE */
     if ($err === '') {
         try {
             $amountDb = number_format((float)$amountRaw, 2, '.', '');
@@ -433,7 +414,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
 
             $_SESSION['flash_success'] = "Payment proof submitted successfully! Awaiting LGU Treasury verification. You will be notified once it is verified.";
         } catch (PDOException $e) {
-            if ($destination !== '' && is_file($destination)) @unlink($destination);   // iwas ulila na file
+            if ($destination !== '' && is_file($destination)) @unlink($destination);
             error_log('[payments] insert: ' . $e->getMessage());
             $err = 'We could not save your payment. Please try again.';
         }
@@ -444,13 +425,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
     exit();
 }
 
-/* User rentals */
 $userRentals = [];
 $stmtRentals = $conn->prepare("SELECT id, tracking_no, business_name, rental_name FROM rentals WHERE user_id = :uid AND is_deleted = '0' ORDER BY business_name ASC");
 $stmtRentals->execute([':uid' => $userId]);
 $userRentals = $stmtRentals->fetchAll(PDO::FETCH_ASSOC);
 
-/* Pending renewals */
 $userPendingRenewals = [];
 if (tableExists($conn, 'permit_renewals')) {
     try {
@@ -460,7 +439,6 @@ if (tableExists($conn, 'permit_renewals')) {
     } catch (PDOException $e) { $userPendingRenewals = []; }
 }
 
-/* Notifications */
 $unreadNotifCount = 0; $notifications = [];
 if (tableExists($conn, 'notifications')) {
     if (columnExists($conn, 'notifications', 'is_read')) {
@@ -475,9 +453,6 @@ if (tableExists($conn, 'notifications')) {
     $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/* ==============================================
-   PAYMENT HISTORY: filters, search, pagination
-============================================== */
 $SQL_VERIFIED = "LOWER(p.status::text) IN ('paid', 'verified', 'completed')";
 $SQL_PENDING  = "LOWER(p.status::text) = 'pending'";
 $SQL_REJECTED = "LOWER(p.status::text) IN ('rejected', 'cancelled')";
@@ -532,11 +507,10 @@ $buildUrl = function (array $extra = []) use ($baseParams) {
     return 'payments.php' . ($qs !== '' ? '?' . $qs : '');
 };
 
-/* CSV EXPORT (sumusunod sa kasalukuyang filters) */
 if ($getStr('export') === 'csv') {
     $csvSafe = function ($v) {
         $v = (string)$v;
-        return preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;   // iwas CSV/Excel formula injection
+        return preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;
     };
     try {
         $stmtX = $conn->prepare("SELECT p.*, r.business_name, r.rental_name, r.tracking_no FROM payments p INNER JOIN rentals r ON p.rental_id = r.id WHERE $where ORDER BY p.payment_date DESC, p.id DESC LIMIT 5000");
@@ -589,9 +563,6 @@ try {
 $showFrom = $totalRows > 0 ? $offset + 1 : 0;
 $showTo   = min($offset + $perPage, $totalRows);
 
-/* ==============================================
-   SUMMARY (hindi apektado ng filters)
-============================================== */
 $totalPayments = 0; $verifiedCount = 0; $totalAmount = 0.0; $pendingCount = 0; $pendingAmount = 0.0; $rejectedCount = 0;
 $thisMonthAmt = 0.0; $lastMonthAmt = 0.0; $momPct = null;
 try {
@@ -620,7 +591,6 @@ try {
     if ($lastMonthAmt > 0) $momPct = (($thisMonthAmt - $lastMonthAmt) / $lastMonthAmt) * 100;
 } catch (PDOException $e) { error_log('[payments] summary: ' . $e->getMessage()); }
 
-/* CHART DATA: verified payments per month (6 months) */
 $chartMonthLabels = []; $chartMonthValues = []; $hasMonthlyData = false;
 try {
     $stmtM = $conn->prepare("
@@ -642,7 +612,6 @@ for ($i = 5; $i >= 0; $i--) {
     if ($v > 0) $hasMonthlyData = true;
 }
 
-/* CHART DATA: verified amount per payment method */
 $chartMethodLabels = []; $chartMethodValues = []; $hasMethodData = false;
 try {
     $stmtMt = $conn->prepare("
@@ -711,7 +680,9 @@ try {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        body.drawer-open { overflow: hidden !important; touch-action: none; }
+        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
+        body.drawer-open { overflow: hidden !important; }
+        body.drawer-open #aiAssistantWrapper { display: none !important; }
 
         .main-wrapper {
             display: flex; flex-direction: column;
@@ -753,8 +724,8 @@ try {
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER */
-        .sticky-header { position: sticky; top: 0; z-index: 100; background: #ffffff; }
+        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
+        .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 18px; background: #ffffff;
@@ -1109,9 +1080,8 @@ try {
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
             .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
+            .nav-item .nav-dropdown,
+            .nav-item.align-right .nav-dropdown {
                 position: static; left: auto; right: auto;
                 transform: none; opacity: 1; visibility: visible;
                 box-shadow: none; border: none;
@@ -1120,7 +1090,12 @@ try {
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
+            /* FIX: Idinagdag ang align-right sa selector at !important */
+            .nav-item.open .nav-dropdown,
+            .nav-item.align-right.open .nav-dropdown { 
+                max-height: 600px !important; 
+                padding: 8px 0 8px 16px !important; 
+            }
             .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
 
             .sidebar-overlay {
@@ -1129,8 +1104,13 @@ try {
                 z-index: 1999;
                 backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
                 opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none;
             }
-            .sidebar-overlay.active { display: block; opacity: 1; }
+            .sidebar-overlay.active { 
+                display: block; 
+                opacity: 1; 
+                pointer-events: auto; 
+            }
             .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
 
             .stats-grid { grid-template-columns: repeat(1, 1fr); }
@@ -1153,7 +1133,7 @@ try {
             input, select, textarea { font-size: 16px !important; }
             .search-container input, .search-modal-input, .form-control, .form-select { font-size: 16px !important; }
         }
-        /* ===== PAYMENTS: NEW UI ===== */
+        /* PAYMENTS UI */
         .steps-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
         .steps-strip .step { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; }
         .steps-strip .step-no { width: 30px; height: 30px; border-radius: 50%; background: var(--blue-soft); color: var(--accent-blue-dark); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1408,6 +1388,9 @@ try {
                     </div>
                 </div>
             </header>
+
+            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
         <main class="content">
@@ -1942,8 +1925,8 @@ try {
         </div>
     </div>
 
-    <!-- AI ASSISTANT -->
-    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1060; font-family:'Plus Jakarta Sans', sans-serif;">
+    <!-- AI ASSISTANT (FIX: z-index lowered to 1050) -->
+    <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1050; font-family:'Plus Jakarta Sans', sans-serif;">
         <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #dc2626, #991b1b); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(220, 38, 38, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
         </button>
@@ -1969,8 +1952,6 @@ try {
             </div>
         </div>
     </div>
-
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -2033,7 +2014,7 @@ try {
     setInterval(updateClock, 1000);
     updateClock();
 
-    /* CSRF + POST helper (raw Response ang ibinabalik) */
+    /* CSRF + POST helper */
     const CSRF_TOKEN = <?php echo json_encode($csrfToken); ?>;
     function postAction(action, body) {
         return fetch('?ajax_action=' + action, {
@@ -2184,7 +2165,6 @@ try {
         filterRenewalOptions();
     }
 
-    /* Ipakita lang ang pending renewals ng napiling property; gawing required kung meron */
     function filterRenewalOptions() {
         const rental = document.getElementById('uploadRentalSelect')?.value || '';
         const sel = document.getElementById('renewal_id_select');
@@ -2211,7 +2191,7 @@ try {
         const body = document.getElementById('proofBody');
         body.innerHTML = '';
         const isPdf = /\.pdf$/i.test(url);
-        document.querySelector('#proofModal .modal-dialog')?.classList.toggle('is-pdf', isPdf);   // mas malapad lang para sa PDF
+        document.querySelector('#proofModal .modal-dialog')?.classList.toggle('is-pdf', isPdf);
         if (isPdf) {
             const f = document.createElement('iframe');
             f.className = 'proof-frame'; f.src = url; body.appendChild(f);
@@ -2234,7 +2214,7 @@ try {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('receiptModal')).show();
     }
 
-    /* RESUBMIT: i-prefill ang upload form mula sa na-reject na payment */
+    /* RESUBMIT */
     function openResubmit(btn) {
         const rental = document.getElementById('uploadRentalSelect');
         const purpose = document.getElementById('payment_purpose_select');
@@ -2260,7 +2240,7 @@ try {
         });
     });
 
-    /* UPLOAD FORM: client-side checks (naka-validate pa rin sa server) */
+    /* UPLOAD FORM */
     const proofFileInput = document.getElementById('proofFileInput');
     const proofFileInfo = document.getElementById('proofFileInfo');
     proofFileInput?.addEventListener('change', function () {
@@ -2279,7 +2259,7 @@ try {
         const amt = parseFloat(document.getElementById('amountInput').value);
         if (!(amt > 0)) { e.preventDefault(); Swal.fire({ icon: 'warning', title: 'Invalid amount', text: 'Please enter an amount greater than zero.', confirmButtonColor: '#dc2626' }); return; }
         const btn = document.getElementById('submitProofBtn');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Submitting...'; }   // iwas double submit
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Submitting...'; }
     });
     document.getElementById('uploadProofModal')?.addEventListener('shown.bs.modal', filterRenewalOptions);
 

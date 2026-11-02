@@ -9,7 +9,7 @@ config/db.local.php
 node_modules/
 
 # Composer Dependencies
-/vendor/
+# /vendor/
 
 # User-uploaded data (contains personal info) - never commit
 uploads/*
