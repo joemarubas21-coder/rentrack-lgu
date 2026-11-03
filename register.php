@@ -7,7 +7,6 @@ require_once 'config/logger.php';
 
 $message = '';
 $registration_success = false;
-$registered_email = '';
 $registered_username = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
@@ -39,141 +38,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             $check_user = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
             $check_user->execute([':username' => $username]);
             
-            $check_email = $conn->prepare("SELECT id, is_verified FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
+            $check_email = $conn->prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
             $check_email->execute([':email' => $email]);
             $existing_email_user = $check_email->fetch(PDO::FETCH_ASSOC);
 
             if ($check_user->fetch()) {
-                $is_own_unverified_username = false;
-                if ($existing_email_user) {
-                    $check_own_username = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) AND id = :id LIMIT 1");
-                    $check_own_username->execute([':username' => $username, ':id' => $existing_email_user['id']]);
-                    if ($check_own_username->fetch()) {
-                        $is_own_unverified_username = true;
-                    }
-                }
-
-                if (!$is_own_unverified_username) {
-                    $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The username <strong>'.htmlspecialchars($username).'</strong> is already taken.</div>';
-                }
+                $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The username <strong>'.htmlspecialchars($username).'</strong> is already taken.</div>';
             } 
 
-            if (empty($message) && $existing_email_user && (int)$existing_email_user['is_verified'] === 1) {
+            if (empty($message) && $existing_email_user) {
                 $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The email address <strong>'.htmlspecialchars($email).'</strong> is already registered.</div>';
             } 
 
             if (empty($message)) {
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $token = bin2hex(random_bytes(32));
                 $role = 'owner';
-                $status = 'Active';
-                $is_verified = 0;
+                $status = 'Active';      // Diretso Active na agad
+                $is_verified = 1;        // Ituturing na verified
 
-                if ($existing_email_user) {
-                    $existing_id = $existing_email_user['id'];
-                    $insert_stmt = $conn->prepare("
-                        UPDATE users 
-                        SET fullname = :fullname, username = :username, contact = :contact, 
-                            password = :password, verification_token = :token, is_verified = 0, status = :status 
-                        WHERE id = :id
-                    ");
-                    $execute_success = $insert_stmt->execute([
-                        ':fullname'   => $fullname,
-                        ':username'   => $username,
-                        ':contact'    => $contact,
-                        ':password'   => $hashed_password,
-                        ':token'      => $token,
-                        ':status'     => $status,
-                        ':id'         => $existing_id
-                    ]);
-                    $newUserId = $existing_id;
-                } else {
-                    $insert_stmt = $conn->prepare("
-                        INSERT INTO users (fullname, username, email, contact, password, role, status, verification_token, is_verified) 
-                        VALUES (:fullname, :username, :email, :contact, :password, :role, :status, :token, :is_verified)
-                    ");
-                    $execute_success = $insert_stmt->execute([
-                        ':fullname'   => $fullname,
-                        ':username'   => $username,
-                        ':email'      => $email,
-                        ':contact'    => $contact,
-                        ':password'   => $hashed_password,
-                        ':role'       => $role,
-                        ':status'     => $status,
-                        ':token'      => $token,
-                        ':is_verified'=> $is_verified
-                    ]);
-                    $newUserId = (int) $conn->lastInsertId();
-                }
+                $insert_stmt = $conn->prepare("
+                    INSERT INTO users (fullname, username, email, contact, password, role, status, is_verified) 
+                    VALUES (:fullname, :username, :email, :contact, :password, :role, :status, :is_verified)
+                ");
+                $execute_success = $insert_stmt->execute([
+                    ':fullname'   => $fullname,
+                    ':username'   => $username,
+                    ':email'      => $email,
+                    ':contact'    => $contact,
+                    ':password'   => $hashed_password,
+                    ':role'       => $role,
+                    ':status'     => $status,
+                    ':is_verified'=> $is_verified
+                ]);
+                $newUserId = (int) $conn->lastInsertId();
 
                 if ($execute_success) {
                     if (function_exists('logActivity')) {
                         logActivity(
                             $conn,
                             $newUserId,
-                            "Owner registration (re-registered): {$fullname} ({$username})",
+                            "Owner registration: {$fullname} ({$username})",
                             'owner',
                             $_SERVER['REMOTE_ADDR'] ?? null
                         );
                     }
 
-                    $verify_link = site_base_url() . "/verify.php?token=" . $token;
-
-                    // ✅ I-EMAIL GAMIT ANG BREVO API (HTTPS)
-                    try {
-                        $api_key = env_value('BREVO_API_KEY', '');
-                        
-                        $email_body = "
-                        <html>
-                        <body style='font-family: Arial, sans-serif; background-color: #f8fafc; color: #0f172a; padding: 20px;'>
-                            <div style='max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0;'>
-                                <h2 style='color: #dc2626;'>Greetings, {$fullname}!</h2>
-                                <p>Thank you for registering on the <strong>RENTRACK LGU Owner Portal</strong>.</p>
-                                <p>To activate your account, please click the verification button below:</p>
-                                <div style='text-align: center; margin: 30px 0;'>
-                                    <a href='{$verify_link}' style='background-color: #dc2626; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;'>Verify Email Address</a>
-                                </div>
-                                <p>If you did not request this, please ignore this email.</p>
-                            </div>
-                        </body>
-                        </html>";
-
-                        $email_data = [
-                            "sender" => [
-                                "name" => "RENTRACK LGU",
-                                "email" => env_value('MAIL_USERNAME', '') // Gagamitin ang Gmail mo na naka-set sa Render
-                            ],
-                            "to" => [
-                                ["email" => $email, "name" => $fullname]
-                            ],
-                            "subject" => "Confirm your RENTRACK LGU Account",
-                            "htmlContent" => $email_body
-                        ];
-
-                        $ch = curl_init('https://api.brevo.com/v3/smtp/email');
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                        curl_setopt($ch, CURLOPT_POST, true);
-                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
-                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'accept: application/json',
-                            'api-key: ' . $api_key,
-                            'content-type: application/json'
-                        ]);
-                        
-                        $response = curl_exec($ch);
-                        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        curl_close($ch);
-
-                        if ($http_code >= 200 && $http_code < 300) {
-                            $registration_success = true;
-                            $registered_email = $email;
-                            $registered_username = $username;
-                        } else {
-                            $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Could not send email. API Error: ' . htmlspecialchars($response) . '</div>';
-                        }
-                    } catch (Exception $e) {
-                        $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Could not send email. ' . htmlspecialchars($e->getMessage()) . '</div>';
-                    }
+                    // Diretso success na, walang email sending
+                    $registration_success = true;
+                    $registered_username = $username;
                 } else {
                     $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> An error occurred while saving. Please try again.</div>';
                 }
@@ -1168,7 +1080,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
               </li>
               <li>
                 <span class="feature-icon"><i class="fa-solid fa-envelope-circle-check"></i></span>
-                Email verification
+                No email verification needed
               </li>
               <li>
                 <span class="feature-icon"><i class="fa-solid fa-chart-line"></i></span>
@@ -1399,10 +1311,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
   <div class="modal-overlay" id="confirmModal">
     <div class="modal-card">
       <div class="modal-icon">
-        <i class="fa-solid fa-paper-plane"></i>
+        <i class="fa-solid fa-user-plus"></i>
       </div>
-      <h3>Verify Your Email</h3>
-      <p>A verification link will be sent to <span class="target-email" id="displayEmail"></span>. Please check your inbox or spam folder to complete registration.</p>
+      <h3>Create Account</h3>
+      <p>Please confirm that all the information you entered is correct. Your account will be created immediately.</p>
       <div class="modal-actions">
         <button type="button" class="btn-modal btn-cancel" id="cancelModal">Cancel</button>
         <button type="button" class="btn-modal btn-confirm" id="confirmSubmit">Confirm &amp; Submit</button>
@@ -1419,20 +1331,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
       </div>
       <h3>Registration Successful!</h3>
       <p>
-        Your account <strong style="color:#dc2626;"><?php echo htmlspecialchars($registered_username); ?></strong> has been created.
+        Your account <strong style="color:#dc2626;"><?php echo htmlspecialchars($registered_username); ?></strong> has been created successfully.
         <br><br>
-        We sent a verification link to <span class="target-email"><?php echo htmlspecialchars($registered_email); ?></span>.
-        <br><br>
-        <strong style="color:#92400e;">⚠️ You cannot log in yet.</strong> Please verify your email first by clicking the link in your inbox.
+        <strong style="color:#065f46;">✓ You can now log in immediately.</strong> No email verification needed.
       </p>
       <div class="modal-actions">
         <a href="login.php?portal=owner" class="btn-modal btn-confirm">
-          <i class="fa-solid fa-right-to-bracket"></i> Go to Login
+          <i class="fa-solid fa-right-to-bracket"></i> Proceed to Login
         </a>
       </div>
-      <span class="resend-link">
-        Didn't receive the email? <a href="resend_verification.php">Resend verification link</a>
-      </span>
     </div>
   </div>
   <?php endif; ?>
@@ -1727,9 +1634,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             return;
           }
 
-          if (displayEmail && emailInput) {
-            displayEmail.textContent = emailInput.value.trim();
-          }
           modal.classList.add('active');
         });
 
