@@ -1,4 +1,4 @@
-﻿﻿<?php
+<?php
 ob_start(); // <--- ITO ANG MAG-SASALO SA ERROR
 require_once __DIR__ . '/../config/session.php'; app_session_start();
 
