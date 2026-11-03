@@ -35,26 +35,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     } 
     else {
         try {
-            $check_user = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
+            // Check kung may existing user sa username
+            $check_user = $conn->prepare("SELECT id, email FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
             $check_user->execute([':username' => $username]);
+            $existing_username_user = $check_user->fetch(PDO::FETCH_ASSOC);
             
-            $check_email = $conn->prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
+            // Check kung may existing user sa email
+            $check_email = $conn->prepare("SELECT id, username FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
             $check_email->execute([':email' => $email]);
             $existing_email_user = $check_email->fetch(PDO::FETCH_ASSOC);
 
-            if ($check_user->fetch()) {
+            // Logic para sa Username (Kung taken na at iba ang email, i-block)
+            if ($existing_username_user && strtolower($existing_username_user['email']) !== strtolower($email)) {
                 $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The username <strong>'.htmlspecialchars($username).'</strong> is already taken.</div>';
             } 
 
+            // Logic para sa Email (Update kung parehong username, Block kung iba)
             if (empty($message) && $existing_email_user) {
-                $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The email address <strong>'.htmlspecialchars($email).'</strong> is already registered.</div>';
+                $existing_id = $existing_email_user['id'];
+                
+                if (strtolower($existing_email_user['username']) !== strtolower($username)) {
+                     $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> The email address <strong>'.htmlspecialchars($email).'</strong> is already registered with a different username.</div>';
+                } else {
+                    // I-UPDATE ang lumang record para maging Active at Verified
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                    $update_stmt = $conn->prepare("
+                        UPDATE users 
+                        SET fullname = :fullname, username = :username, contact = :contact, password = :password, 
+                            status = 'Active', is_verified = 1 
+                        WHERE id = :id
+                    ");
+                    $execute_success = $update_stmt->execute([
+                        ':fullname'   => $fullname,
+                        ':username'   => $username, // <-- Idinagdag ito
+                        ':contact'    => $contact,
+                        ':password'   => $hashed_password,
+                        ':id'         => $existing_id
+                    ]);
+                    $newUserId = $existing_id;
+                }
             } 
-
-            if (empty($message)) {
+            elseif (empty($message)) {
+                // Bagong INSERT kung wala pang record
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $role = 'owner';
-                $status = 'Active';      // Diretso Active na agad
-                $is_verified = 1;        // Ituturing na verified
+                $status = 'Active';
+                $is_verified = 1;
 
                 $insert_stmt = $conn->prepare("
                     INSERT INTO users (fullname, username, email, contact, password, role, status, is_verified) 
@@ -71,24 +97,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     ':is_verified'=> $is_verified
                 ]);
                 $newUserId = (int) $conn->lastInsertId();
+            }
 
-                if ($execute_success) {
-                    if (function_exists('logActivity')) {
-                        logActivity(
-                            $conn,
-                            $newUserId,
-                            "Owner registration: {$fullname} ({$username})",
-                            'owner',
-                            $_SERVER['REMOTE_ADDR'] ?? null
-                        );
-                    }
-
-                    // Diretso success na, walang email sending
-                    $registration_success = true;
-                    $registered_username = $username;
-                } else {
-                    $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> An error occurred while saving. Please try again.</div>';
+            if (empty($message) && $execute_success) {
+                if (function_exists('logActivity')) {
+                    logActivity(
+                        $conn,
+                        $newUserId,
+                        "Owner registration/update: {$fullname} ({$username})",
+                        'owner',
+                        $_SERVER['REMOTE_ADDR'] ?? null
+                    );
                 }
+
+                $registration_success = true;
+                $registered_username = $username;
+            } elseif (empty($message) && !$execute_success) {
+                $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> An error occurred while saving. Please try again.</div>';
             }
         } catch (PDOException $e) {
             $message = '<div class="alert error"><i class="fa-solid fa-circle-exclamation"></i> Database Error: ' . htmlspecialchars(safe_error($e)) . '</div>';
@@ -1456,7 +1481,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
           }
 
           emailTimeout = setTimeout(function () {
-            fetch('check_availability.php?type=email&value=' + encodeURIComponent(val))
+            // ✅ IPINASA NA RIN ANG USERNAME PARA SA CHECK
+            const uname = usernameInput ? usernameInput.value.trim() : '';
+            fetch('check_availability.php?type=email&value=' + encodeURIComponent(val) + '&username=' + encodeURIComponent(uname))
               .then(function (res) {
                 if (!res.ok) throw new Error('Request failed');
                 return res.json();
