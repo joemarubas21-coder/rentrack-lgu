@@ -46,8 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['clear'])) {
 }
 
 $error = "";
-$is_unverified = false;
-$unverified_email = '';
 
 // ======================================
 // LOGIN ATTEMPTS & LOCKOUT SYSTEM
@@ -201,12 +199,8 @@ if (isset($_POST['login']) && !$is_locked_out) {
 
             if ($user && password_verify($password, $user['password'])) {
 
-                if ($portal === 'owner' && (int)$user['is_verified'] === 0) {
-                    $is_unverified = true;
-                    $unverified_email = $user['email'];
-                    $error = "Your account is not yet verified. Please check your email inbox and click the verification link before logging in.";
-                }
-                elseif ($user['status'] !== 'Active') {
+                // ✅ INALIS ANG EMAIL VERIFICATION CHECK DITO
+                if ($user['status'] !== 'Active') {
                     $error = "This account is inactive. Please contact the administrator.";
                 } 
                 elseif ($user['role'] !== $portal) {
@@ -273,8 +267,6 @@ if ($is_api) {
     if (isset($_POST['login'])) {
         if ($is_locked_out) {
             echo json_encode(['status' => 'locked', 'lockSeconds' => $remaining_cooldown, 'message' => $error]);
-        } elseif ($is_unverified) {
-            echo json_encode(['status' => 'unverified', 'email' => $unverified_email, 'message' => $error]);
         } elseif ($error !== "") {
             echo json_encode(['status' => 'error', 'message' => $error]);
         } elseif ($is_math_step) {
@@ -511,34 +503,6 @@ if ($is_api) {
             position: relative;
             z-index: 1;
             font-weight: 500;
-        }
-
-        .error-message.warning {
-            background: #fef3c7;
-            border: 1px solid #fde68a;
-            color: #92400e;
-            align-items: flex-start;
-            padding: 14px 16px;
-        }
-
-        .error-message.warning i { color: #d97706; font-size: 18px; margin-top: 2px; }
-        .error-message.warning .msg-content { flex: 1; min-width: 0; }
-        .error-message.warning .msg-content strong { color: #92400e; display: block; margin-bottom: 4px; font-size: 13px; }
-        .error-message.warning .msg-content p { font-size: 12px; line-height: 1.5; color: #b45309; margin-bottom: 10px; word-break: break-word; }
-        
-        .error-message.warning .msg-content .resend-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: #fde68a;
-            border: 1px solid #fcd34d;
-            color: #92400e;
-            font-size: 11px;
-            font-weight: 700;
-            border-radius: 6px;
-            text-decoration: none;
-            transition: all 0.2s ease;
         }
 
         /* FORM ELEMENTS */
@@ -778,27 +742,10 @@ if ($is_api) {
         <div class="login-right">
             <!-- Error Message -->
             <?php if ($error !== "" && !$is_math_step) { ?>
-                <?php if ($is_unverified): ?>
-                    <div class="error-message warning" id="errorMessage">
-                        <i class="fa-solid fa-envelope-circle-check"></i>
-                        <div class="msg-content">
-                            <strong>Email Verification Required</strong>
-                            <p>
-                                Your owner account is not yet verified. We sent a verification link to 
-                                <strong style="color:#92400e;"><?php echo htmlspecialchars($unverified_email); ?></strong>. 
-                                Please check your inbox (and spam folder) and click the verification link before logging in.
-                            </p>
-                            <a href="resend_verification.php" class="resend-btn">
-                                <i class="fa-solid fa-paper-plane"></i> Resend Verification Link
-                            </a>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="error-message" id="errorMessage">
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <span id="errorText"><?php echo htmlspecialchars($error); ?></span>
-                    </div>
-                <?php endif; ?>
+                <div class="error-message" id="errorMessage">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span id="errorText"><?php echo htmlspecialchars($error); ?></span>
+                </div>
             <?php } ?>
 
             <!-- LOGIN FORM -->
