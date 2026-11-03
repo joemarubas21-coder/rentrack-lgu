@@ -67,4 +67,3 @@ if (isset($_SESSION['status'])) {
     }
 
 }
-?>
