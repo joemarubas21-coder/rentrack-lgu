@@ -6,10 +6,9 @@ require_once 'config/db.php';
 require_once 'config/logger.php';
 
 $message = '';
-$message_type = ''; // 'success' o 'error'
+$message_type = ''; 
 $prefilled_email = '';
 
-// Kung may pumasok na email via GET (galing sa login page warning card)
 if (isset($_GET['email']) && filter_var($_GET['email'], FILTER_VALIDATE_EMAIL)) {
     $prefilled_email = htmlspecialchars($_GET['email']);
 }
@@ -26,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
         $message_type = 'error';
     } else {
         try {
-            // Hanapin ang user sa database
             $stmt = $conn->prepare(
                 "SELECT id, fullname, username, email, is_verified, verification_token 
                  FROM users 
@@ -41,12 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                 $message_type = 'error';
             } 
             elseif ((int)$user['is_verified'] === 1) {
-                // Verified na ang account
                 $message = 'Your account is already verified. You can now <a href="login.php?portal=owner" style="color:#f4c84a;font-weight:700;">sign in here</a>.';
                 $message_type = 'success';
             } 
             else {
-                // ✅ UNVERIFIED PA — Gumawa ng bagong token
                 $new_token = bin2hex(random_bytes(32));
 
                 $update = $conn->prepare(
@@ -59,7 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                     ':id'    => $user['id']
                 ]);
 
-                // I-log ang resend action
                 if (function_exists('logActivity')) {
                     logActivity(
                         $conn,
@@ -70,12 +65,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                     );
                 }
 
-                // Build verification link
                 $verify_link = site_base_url() . "/verify.php?token=" . $new_token;
 
-                // ✅ I-EMAIL GAMIT ANG RESEND API (HTTPS)
+                // ✅ I-EMAIL GAMIT ANG BREVO API (HTTPS)
                 try {
-                    $api_key = env_value('RESEND_API_KEY', '');
+                    $api_key = env_value('BREVO_API_KEY', '');
                     $safeName = htmlspecialchars($user['fullname']);
 
                     $email_body = "
@@ -96,19 +90,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend'])) {
                     </html>";
 
                     $email_data = [
-                        "from" => "RENTRACK LGU <onboarding@resend.dev>",
-                        "to" => [$email],
+                        "sender" => [
+                            "name" => "RENTRACK LGU",
+                            "email" => env_value('MAIL_USERNAME', '')
+                        ],
+                        "to" => [
+                            ["email" => $email, "name" => $user['fullname']]
+                        ],
                         "subject" => "Resend: Confirm your RENTRACK LGU Account",
-                        "html" => $email_body
+                        "htmlContent" => $email_body
                     ];
 
-                    $ch = curl_init('https://api.resend.com/emails');
+                    $ch = curl_init('https://api.brevo.com/v3/smtp/email');
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_POST, true);
                     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
                     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Authorization: Bearer ' . $api_key,
-                        'Content-Type: application/json'
+                        'accept: application/json',
+                        'api-key: ' . $api_key,
+                        'content-type: application/json'
                     ]);
                     
                     $response = curl_exec($ch);

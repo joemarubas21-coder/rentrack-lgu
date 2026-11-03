@@ -2,10 +2,7 @@
 // register.php
 require_once __DIR__ . '/config/session.php'; app_session_start();
 
-// Import Supabase/PDO DB Connection
 require_once 'config/db.php';
-
-// Import Activity Logger (PostgreSQL/PDO Compatible)
 require_once 'config/logger.php';
 
 $message = '';
@@ -39,11 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     } 
     else {
         try {
-            // Check existing username in Supabase
             $check_user = $conn->prepare("SELECT id FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
             $check_user->execute([':username' => $username]);
             
-            // Check existing email at kunin kung verified na
             $check_email = $conn->prepare("SELECT id, is_verified FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1");
             $check_email->execute([':email' => $email]);
             $existing_email_user = $check_email->fetch(PDO::FETCH_ASSOC);
@@ -68,15 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             } 
 
             if (empty($message)) {
-                // Hash Password & Generate Verification Token
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $token = bin2hex(random_bytes(32));
                 $role = 'owner';
                 $status = 'Active';
-                $is_verified = 0;  // Needs email confirmation
+                $is_verified = 0;
 
                 if ($existing_email_user) {
-                    // UPDATE EXISTING UNVERIFIED RECORD
                     $existing_id = $existing_email_user['id'];
                     $insert_stmt = $conn->prepare("
                         UPDATE users 
@@ -95,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     ]);
                     $newUserId = $existing_id;
                 } else {
-                    // INSERT NEW RECORD
                     $insert_stmt = $conn->prepare("
                         INSERT INTO users (fullname, username, email, contact, password, role, status, verification_token, is_verified) 
                         VALUES (:fullname, :username, :email, :contact, :password, :role, :status, :token, :is_verified)
@@ -115,7 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 }
 
                 if ($execute_success) {
-                    // ✅ I-LOG ANG REGISTRATION SA ACTIVITY LOGS
                     if (function_exists('logActivity')) {
                         logActivity(
                             $conn,
@@ -128,9 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
                     $verify_link = site_base_url() . "/verify.php?token=" . $token;
 
-                    // ✅ I-EMAIL GAMIT ANG RESEND API (HTTPS)
+                    // ✅ I-EMAIL GAMIT ANG BREVO API (HTTPS)
                     try {
-                        $api_key = env_value('RESEND_API_KEY', '');
+                        $api_key = env_value('BREVO_API_KEY', '');
                         
                         $email_body = "
                         <html>
@@ -148,19 +139,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                         </html>";
 
                         $email_data = [
-                            "from" => "RENTRACK LGU <onboarding@resend.dev>",
-                            "to" => [$email],
+                            "sender" => [
+                                "name" => "RENTRACK LGU",
+                                "email" => env_value('MAIL_USERNAME', '') // Gagamitin ang Gmail mo na naka-set sa Render
+                            ],
+                            "to" => [
+                                ["email" => $email, "name" => $fullname]
+                            ],
                             "subject" => "Confirm your RENTRACK LGU Account",
-                            "html" => $email_body
+                            "htmlContent" => $email_body
                         ];
 
-                        $ch = curl_init('https://api.resend.com/emails');
+                        $ch = curl_init('https://api.brevo.com/v3/smtp/email');
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                         curl_setopt($ch, CURLOPT_POST, true);
                         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
                         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'Authorization: Bearer ' . $api_key,
-                            'Content-Type: application/json'
+                            'accept: application/json',
+                            'api-key: ' . $api_key,
+                            'content-type: application/json'
                         ]);
                         
                         $response = curl_exec($ch);
