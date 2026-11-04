@@ -57,7 +57,7 @@ function displayField($row, $possibleFields) {
     return '—';
 }
 
-// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (MAY APIKEY HEADER NA)
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (FIXED: ALIS ANG AUTHORIZATION HEADER)
 function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
     $mimeType = mime_content_type($filePath);
     $fileData = file_get_contents($filePath);
@@ -68,10 +68,9 @@ function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabase
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
     
-    // ✅ ITO ANG FIX: Idinagdag ang 'apikey' header para sa sb_secret key
+    // ✅ ITO ANG FIX: Ginagamit lamang ang 'apikey' header para sa sb_secret key
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "apikey: $supabaseKey", 
-        "Authorization: Bearer $supabaseKey",
         "Content-Type: $mimeType",
         "x-upsert: true"
     ]);
