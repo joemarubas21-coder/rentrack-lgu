@@ -10,7 +10,7 @@ if (!isset($_SESSION['regenerated'])) {
 require_once("../config/db.php");
 require_once("includes/auth.php");
 
-// ✅ SUPABASE CREDENTIALS (Naka-setup na base sa binigay mo)
+// ✅ SUPABASE CREDENTIALS
 $supabaseUrl = 'https://rtjphvbrbaqqtfkyjqkj.supabase.co';
 $supabaseKey = 'sb_secret_oZPajkebFwmWuNbWhPiJhA_t5NN4ROS'; 
 $supabaseBucket = 'renewals';
@@ -57,7 +57,7 @@ function displayField($row, $possibleFields) {
     return '—';
 }
 
-// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (MAY APIKEY HEADER NA)
 function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
     $mimeType = mime_content_type($filePath);
     $fileData = file_get_contents($filePath);
@@ -67,7 +67,10 @@ function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabase
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
+    
+    // ✅ ITO ANG FIX: Idinagdag ang 'apikey' header para sa sb_secret key
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "apikey: $supabaseKey", 
         "Authorization: Bearer $supabaseKey",
         "Content-Type: $mimeType",
         "x-upsert: true"
@@ -80,7 +83,8 @@ function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabase
     if ($httpCode >= 200 && $httpCode < 300) {
         return "$supabaseUrl/storage/v1/object/public/$bucket/$fileName";
     }
-    error_log("Supabase Upload Error: " . $response);
+    
+    error_log("Supabase Upload Error | HTTP Code: $httpCode | Response: " . $response);
     return false;
 }
 
