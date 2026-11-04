@@ -387,7 +387,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
             }
 
             // 3. GENERATE NEW HTML PERMIT AND SAVE TO DATABASE
-            // Kunin ang detalye ng rental at renewal
             $rStmt = $conn->prepare("
                 SELECT r.id, r.tracking_no, r.business_name, r.rental_name, r.user_id, u.fullname as owner_name 
                 FROM rentals r 
@@ -419,7 +418,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
                 $permitPrefix = $prefixMap[$displayPermitType] ?? 'PERMIT';
                 $year = date('Y');
                 
-                // Generate a new permit number for renewal
                 $permitSeqStmt = $conn->prepare("
                     SELECT COUNT(*) + 1 
                     FROM documents 
@@ -431,7 +429,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
                     ':yr'     => $year
                 ]);
                 $seq = (int)$permitSeqStmt->fetchColumn();
-                $generatedPermitNo = $permitPrefix . '-' . $year . '-RE' . str_pad($seq, 3, '0', STR_PAD_LEFT); // RE stands for Renewal
+                $generatedPermitNo = $permitPrefix . '-' . $year . '-RE' . str_pad($seq, 3, '0', STR_PAD_LEFT);
 
                 $permitHtml = buildPermitCertificateHtml([
                     'trackingNo'          => $trackingNo,
@@ -449,7 +447,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
                     'permitNo'            => $generatedPermitNo,
                 ]);
 
-                // I-save ang bagong HTML permit sa Database
                 $insDocStmt = $conn->prepare("
                     INSERT INTO documents (
                         user_id, rental_id, title, type, notes, file_name, stored_name, owner_folder_path,
@@ -1686,6 +1683,14 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
                                             ? number_format((float)$row['amount_paid'], 2)
                                             : '0.00';
                                         $payDate = !empty($row['payment_date']) ? date('M d, Y', strtotime($row['payment_date'])) : 'N/A';
+
+                                        // ✅ CHECK KUNG SUPABASE URL O LOCAL FILE
+                                        $filePath = $row['supporting_file'];
+                                        if (filter_var($filePath, FILTER_VALIDATE_URL)) {
+                                            $viewPath = h($filePath); // Supabase URL
+                                        } else {
+                                            $viewPath = "../uploads/renewals/" . h($filePath); // Local fallback
+                                        }
                                     ?>
                                     <tr>
                                         <td data-label="Date"><?php echo date('M d, Y h:i A', strtotime($row['created_at'])); ?></td>
@@ -1723,7 +1728,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
                                         <td data-label="Attachment">
                                             <?php if (!empty($row['supporting_file'])): ?>
                                                 <button type="button" class="btn-action btn-view open-view-file-modal" 
-                                                        data-file="../uploads/renewals/<?php echo h($row['supporting_file']); ?>" 
+                                                        data-file="<?php echo $viewPath; ?>" 
                                                         data-title="<?php echo h($row['document_type']); ?> - <?php echo h($bizName); ?>">
                                                     <i class="fa-solid fa-eye"></i> View File
                                                 </button>
