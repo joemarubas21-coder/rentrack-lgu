@@ -208,7 +208,7 @@ unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
             min-height: 100vh;
             min-height: 100dvh;
             overflow-x: hidden;
-            padding-top: var(--header-total-height); /* Space for fixed headers */
+            padding-top: var(--header-total-height);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             touch-action: manipulation;
@@ -982,7 +982,7 @@ unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
         <div class="dashboard-shell">
             <div class="rt-panel">
 
-                <!-- WELCOME BANNER (Walang Back Button na) -->
+                <!-- WELCOME BANNER -->
                 <div class="welcome-banner">
                     <div class="welcome-content">
                         <span class="welcome-portal-badge"><i class="fa-solid fa-file-circle-check"></i> RENEWAL MONITORING</span>
@@ -1053,6 +1053,16 @@ unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
                                     elseif ($st === 'rejected') $badgeClass = 'badge-rejected';
                                     
                                     $bizName = !empty($row['business_name']) ? $row['business_name'] : ($row['rental_name'] ?? 'N/A');
+
+                                    // ✅ FIX: Tukuyin kung Supabase URL o local file
+                                    $filePath = $row['supporting_file'] ?? '';
+                                    if (!empty($filePath)) {
+                                        if (filter_var($filePath, FILTER_VALIDATE_URL)) {
+                                            $viewUrl = h($filePath); // Supabase
+                                        } else {
+                                            $viewUrl = "../uploads/renewals/" . h($filePath); // Local
+                                        }
+                                    }
                                 ?>
                                 <tr>
                                     <td><?php echo $i + 1; ?></td>
@@ -1071,8 +1081,8 @@ unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
                                     <td><?php echo h($row['document_type']); ?></td>
                                     <td><?php echo !empty($row['current_expiry_date']) ? date('M d, Y', strtotime($row['current_expiry_date'])) : '—'; ?></td>
                                     <td>
-                                        <?php if (!empty($row['supporting_file'])): ?>
-                                            <a href="../uploads/renewals/<?php echo h($row['supporting_file']); ?>" target="_blank" class="btn-action btn-view">
+                                        <?php if (!empty($filePath)): ?>
+                                            <a href="<?php echo $viewUrl; ?>" target="_blank" rel="noopener noreferrer" class="btn-action btn-view">
                                                 <i class="fa-solid fa-eye"></i> View
                                             </a>
                                         <?php else: ?>
