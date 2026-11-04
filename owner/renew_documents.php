@@ -167,13 +167,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
         $fileName = $_FILES['supporting_file']['name'];
         $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
         $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+        
         if (in_array($fileExtension, $allowedExtensions, true) && upload_content_ok($fileTmpPath, $fileExtension)) {
             $newFileName = 'renewal_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
-            $uploadFileDir = '../uploads/renewals/';
-            if (!is_dir($uploadFileDir)) mkdir($uploadFileDir, 0755, true);
-            $dest_path = $uploadFileDir . $newFileName;
-            if (move_uploaded_file($fileTmpPath, $dest_path)) $uploadedFile = $newFileName;
-            else $flashError = 'There was an error uploading the file.';
+            
+            // ✅ FIX: Gumamit ng absolute path at tamang error handling para sa Render
+            $uploadFileDir = __DIR__ . '/../uploads/renewals/';
+            if (!is_dir($uploadFileDir)) {
+                // Susubukang gumawa ng folder na may write permission
+                if (!@mkdir($uploadFileDir, 0775, true) && !is_dir($uploadFileDir)) {
+                    $flashError = 'Server Error: Cannot create upload directory. Please contact support.';
+                }
+            }
+            
+            if (empty($flashError)) {
+                $dest_path = $uploadFileDir . $newFileName;
+                if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                    $uploadedFile = $newFileName;
+                } else {
+                    $flashError = 'There was an error moving the uploaded file. Please check folder permissions.';
+                }
+            }
         } else {
             $flashError = 'Invalid file format. Please upload PDF or image files (JPG, PNG).';
         }
