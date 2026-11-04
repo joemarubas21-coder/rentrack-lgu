@@ -10,6 +10,11 @@ if (!isset($_SESSION['regenerated'])) {
 require_once("../config/db.php");
 require_once("includes/auth.php");
 
+// ✅ SUPABASE CREDENTIALS (Naka-setup na base sa binigay mo)
+$supabaseUrl = 'https://rtjphvbrbaqqtfkyjqkj.supabase.co';
+$supabaseKey = 'sb_secret_oZPajkebFwmWuNbWhPiJhA_t5NN4ROS'; 
+$supabaseBucket = 'renewals';
+
 $userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
 
 if ($userId === 0) {
@@ -22,7 +27,6 @@ $userName = isset($_SESSION['fullname']) && !empty(trim($_SESSION['fullname']))
     : 'Owner';
 $userInitial = strtoupper(substr(trim($userName), 0, 1));
 
-/* Fallback kung wala pang safe_error() sa config/auth */
 if (!function_exists('safe_error')) {
     function safe_error($e) {
         error_log('[renew_documents] ' . $e->getMessage());
@@ -51,6 +55,33 @@ function displayField($row, $possibleFields) {
         if (isset($row[$field]) && trim((string)$row[$field]) !== '') return htmlspecialchars((string)$row[$field]);
     }
     return '—';
+}
+
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD
+function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
+    $mimeType = mime_content_type($filePath);
+    $fileData = file_get_contents($filePath);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "$supabaseUrl/storage/v1/object/$bucket/$fileName");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer $supabaseKey",
+        "Content-Type: $mimeType",
+        "x-upsert: true"
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return "$supabaseUrl/storage/v1/object/public/$bucket/$fileName";
+    }
+    error_log("Supabase Upload Error: " . $response);
+    return false;
 }
 
 /* MARK NOTIF */
@@ -161,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
     $currentExpiry = trim($_POST['current_expiry_date'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
 
-    $uploadedFile = '';
+    $uploadedFileUrl = '';
     if (isset($_FILES['supporting_file']) && $_FILES['supporting_file']['error'] === UPLOAD_ERR_OK) {
         $fileTmpPath = $_FILES['supporting_file']['tmp_name'];
         $fileName = $_FILES['supporting_file']['name'];
@@ -171,21 +202,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
         if (in_array($fileExtension, $allowedExtensions, true) && upload_content_ok($fileTmpPath, $fileExtension)) {
             $newFileName = 'renewal_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
             
-            // ✅ FIX: Gumamit ng absolute path at tamang error handling para sa Render
-            $uploadFileDir = __DIR__ . '/../uploads/renewals/';
-            if (!is_dir($uploadFileDir)) {
-                if (!@mkdir($uploadFileDir, 0775, true) && !is_dir($uploadFileDir)) {
-                    $flashError = 'Server Error: Cannot create upload directory. Please contact support.';
-                }
-            }
+            // ✅ UPLOAD TO SUPABASE
+            $supabaseFileUrl = uploadToSupabase($fileTmpPath, $newFileName, $supabaseBucket, $supabaseUrl, $supabaseKey);
             
-            if (empty($flashError)) {
-                $dest_path = $uploadFileDir . $newFileName;
-                if (move_uploaded_file($fileTmpPath, $dest_path)) {
-                    $uploadedFile = $newFileName;
-                } else {
-                    $flashError = 'There was an error moving the uploaded file. Please check folder permissions.';
-                }
+            if ($supabaseFileUrl) {
+                $uploadedFileUrl = $supabaseFileUrl; 
+            } else {
+                $flashError = 'Error uploading to cloud storage. Please try again.';
             }
         } else {
             $flashError = 'Invalid file format. Please upload PDF or image files (JPG, PNG).';
@@ -198,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
         $insertStmt = $conn->prepare("INSERT INTO permit_renewals (user_id, rental_id, document_type, current_expiry_date, supporting_file, remarks, status, created_at) VALUES (:uid, :rid, :dtype, :exp, :sfile, :rem, 'Pending', NOW())");
         if ($insertStmt && $insertStmt->execute([
             ':uid' => $userId, ':rid' => $rentalId, ':dtype' => $documentType,
-            ':exp' => $currentExpiry, ':sfile' => $uploadedFile, ':rem' => $remarks
+            ':exp' => $currentExpiry, ':sfile' => $uploadedFileUrl, ':rem' => $remarks
         ])) {
             try {
                 $bizLookup = $conn->prepare("SELECT business_name, rental_name, tracking_no FROM rentals WHERE id = :rid LIMIT 1");
@@ -1342,18 +1365,17 @@ if (tableExists($conn, 'notifications')) {
                                     <td data-label="Attachment">
                                         <?php 
                                         if (!empty($row['supporting_file'])): 
-                                            // ✅ CHECK KUNG PHYSICALLY EXISTING PA ANG FILE SA SERVER
-                                            $physicalPath = __DIR__ . '/../uploads/renewals/' . $row['supporting_file'];
-                                            if (file_exists($physicalPath)): 
+                                            // ✅ Kung galing sa Supabase (URL), i-view
+                                            if (filter_var($row['supporting_file'], FILTER_VALIDATE_URL)): 
                                         ?>
                                             <button type="button" class="btn btn-sm btn-outline-primary open-view-file-modal" style="font-size:11px; border-radius:8px; padding:4px 10px; color:var(--accent-blue); border-color:var(--card-border);"
-                                                    data-file="../uploads/renewals/<?php echo h($row['supporting_file']); ?>"
+                                                    data-file="<?php echo h($row['supporting_file']); ?>"
                                                     data-title="<?php echo h($row['document_type']); ?> - <?php echo h($bizName); ?>">
                                                 <i class="fa-solid fa-eye"></i> View File
                                             </button>
                                         <?php else: ?>
-                                            <!-- ✅ LALABAS ITO KUNG NABURA NA ANG FILE DAHIL SA RENDER RESTART -->
-                                            <span style="color:var(--danger); font-size:11px; font-style:italic;" title="Ang file na ito ay nabura na ng server (Render restart).">
+                                            <!-- Fallback kung lumang local file (Render Ephemeral) -->
+                                            <span style="color:var(--danger); font-size:11px; font-style:italic;" title="Ang lumang file na ito ay nabura na ng server.">
                                                 <i class="fa-solid fa-triangle-exclamation"></i> File Missing
                                             </span>
                                         <?php endif; ?>
@@ -1761,12 +1783,7 @@ if (tableExists($conn, 'notifications')) {
 
                 if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt)) {
                     imageZoomControls.classList.remove('d-none');
-                    filePreviewContainer.innerHTML = `
-                        <div class="zoom-image-container">
-                            <img src="${filePath}" id="previewImg" class="preview-image-zoomable" 
-                                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'p-5 text-center text-white\\'><i class=\\'fa-solid fa-file-circle-xmark display-3 text-danger mb-3\\'></i><h5>File Not Found</h5><p class=\\'text-muted\\'>The physical file was deleted by the server.</p></div>';">
-                        </div>
-                    `;
+                    filePreviewContainer.innerHTML = `<div class="zoom-image-container"><img src="${filePath}" id="previewImg" class="preview-image-zoomable" alt="Supporting Attachment"></div>`;
                     const previewImg = document.getElementById('previewImg');
                     if (previewImg) {
                         previewImg.addEventListener('click', function() {
