@@ -1612,6 +1612,7 @@ function getPaymentMethodBadge($method) {
                                 <th>Method</th>
                                 <th>Purpose</th>
                                 <th>Status</th>
+                                <th>Proof</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1632,11 +1633,34 @@ function getPaymentMethodBadge($method) {
                                         <td data-label="Method"><?php echo getPaymentMethodBadge($payment['payment_method'] ?? ''); ?></td>
                                         <td data-label="Purpose"><small style="color:var(--text-sub);"><?php echo h($payment['payment_purpose'] ?? '—'); ?></small></td>
                                         <td data-label="Status"><?php echo getStatusBadge($payment['status'] ?? 'Pending'); ?></td>
+                                        <td data-label="Proof">
+                                            <?php
+                                                /* ✅ FIXED: Proof URL Support (Supabase vs Local) */
+                                                $proofRaw = (string)($payment['proof_image'] ?? '');
+                                                
+                                                if (filter_var($proofRaw, FILTER_VALIDATE_URL)) {
+                                                    // Supabase URL
+                                                    $proofUrl = $proofRaw;
+                                                } elseif (preg_match('#^[A-Za-z0-9_./\-]+$#', $proofRaw) && strpos($proofRaw, '..') === false) {
+                                                    // Local fallback
+                                                    $proofUrl = '../' . ltrim($proofRaw, '/');
+                                                } else {
+                                                    $proofUrl = '';
+                                                }
+
+                                                if (!empty($proofUrl)): ?>
+                                                <a href="<?php echo h($proofUrl); ?>" target="_blank" class="btn btn-sm btn-outline-danger" style="font-size:10.5px; padding:4px 10px; border-radius:8px;">
+                                                    <i class="fa-solid fa-eye"></i> View
+                                                </a>
+                                            <?php else: ?>
+                                                <span style="color:#94a3b8; font-size:11px;">No File</span>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-5">
+                                    <td colspan="9" class="text-center text-muted py-5">
                                         <i class="fa-regular fa-receipt fa-2x mb-2" style="opacity:0.4;"></i><br>
                                         No payments found matching your filters.
                                     </td>

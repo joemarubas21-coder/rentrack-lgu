@@ -1832,12 +1832,21 @@ if (tableExists($conn, 'notifications')) {
                                             </td>
                                             <td data-label="Action">
                                                 <?php
-                                                    /* Proof URL: ligtas na path lang (walang '..', walang kakaibang character) */
+                                                    /* ✅ FIXED: Proof URL Support (Supabase vs Local) */
                                                     $proofRaw = ($proofColumnName !== null && !empty($p[$proofColumnName])) ? (string)$p[$proofColumnName] : '';
                                                     if ($proofRaw === '' && !empty($p['remarks']) && preg_match('/uploads\/payment_proofs\/[^\s]+/', (string)$p['remarks'], $matches)) {
                                                         $proofRaw = $matches[0];
                                                     }
-                                                    $proofUrl = (preg_match('#^[A-Za-z0-9_./\-]+$#', $proofRaw) && strpos($proofRaw, '..') === false) ? '../' . ltrim($proofRaw, '/') : '';
+
+                                                    if (filter_var($proofRaw, FILTER_VALIDATE_URL)) {
+                                                        // Supabase URL
+                                                        $proofUrl = $proofRaw;
+                                                    } elseif (preg_match('#^[A-Za-z0-9_./\-]+$#', $proofRaw) && strpos($proofRaw, '..') === false) {
+                                                        // Local fallback
+                                                        $proofUrl = '../' . ltrim($proofRaw, '/');
+                                                    } else {
+                                                        $proofUrl = '';
+                                                    }
 
                                                     $detailPayload = [
                                                         'id'         => (int)$p['id'],
@@ -2218,23 +2227,25 @@ if (tableExists($conn, 'notifications')) {
             }
             if (dupRow) dupRow.style.display = (p.dup && Number(p.dup) > 0) ? 'flex' : 'none';
 
-            /* Proof: gumagamit ng DOM (hindi innerHTML) at ligtas na path lang */
+            /* ✅ FIXED: Proof Viewer handles Supabase URLs & Local Files */
             const proofContainer = document.getElementById('pd-proof-container');
             proofContainer.textContent = '';
             const rawProof = (p.proofUrl || '').trim();
-            const safeProof = (/^\.\.\/[A-Za-z0-9_\/.\-]+$/.test(rawProof) && !rawProof.slice(3).includes('..')) ? rawProof : '';
-            if (safeProof) {
+            
+            if (rawProof !== '') {
                 const box = document.createElement('div');
                 box.className = 'proof-preview-box';
-                if (safeProof.toLowerCase().endsWith('.pdf')) {
+                const isPdf = rawProof.toLowerCase().endsWith('.pdf');
+
+                if (isPdf) {
                     box.innerHTML = '<i class="fa-solid fa-file-pdf" style="font-size:32px;color:#ef4444;display:block;margin-bottom:8px;"></i>';
                     const a = document.createElement('a');
-                    a.className = 'proof-link'; a.href = safeProof; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open PDF proof';
+                    a.className = 'proof-link'; a.href = rawProof; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open PDF proof';
                     box.appendChild(a);
                 } else {
                     const img = document.createElement('img');
-                    img.src = safeProof; img.alt = 'Proof of payment';
-                    img.addEventListener('click', () => openZoomModal(safeProof));
+                    img.src = rawProof; img.alt = 'Proof of payment';
+                    img.addEventListener('click', () => openZoomModal(rawProof));
                     const hint = document.createElement('span');
                     hint.className = 'proof-hint';
                     hint.innerHTML = '<i class="fa-solid fa-magnifying-glass-plus"></i> Click image to zoom popup';

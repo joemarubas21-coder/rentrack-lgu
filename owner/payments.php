@@ -14,6 +14,11 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== "owner") {
 
 require_once("../config/db.php");
 
+// ✅ SUPABASE CREDENTIALS (Para sa Payment Uploads)
+$supabaseUrl = 'https://rtjphvbrbaqqftkyjqkj.supabase.co';
+$supabaseKey = getenv('SUPABASE_SECRET_KEY');
+$supabaseBucket = 'payments';
+
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 $userName = isset($_SESSION['fullname']) && !empty(trim($_SESSION['fullname']))
     ? trim($_SESSION['fullname'])
@@ -91,6 +96,44 @@ if (!function_exists('upload_content_ok')) {
         finfo_close($f);
         return in_array($m, $map[$ext], true);
     }
+}
+
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (PAYMENTS)
+function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
+    $mimeType = mime_content_type($filePath);
+    $fileData = file_get_contents($filePath);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "$supabaseUrl/storage/v1/object/$bucket/$fileName");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
+    
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "apikey: $supabaseKey", 
+        "Content-Type: $mimeType"
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return "$supabaseUrl/storage/v1/object/public/$bucket/$fileName";
+    }
+    
+    $errorMsg = "HTTP $httpCode";
+    $jsonRes = json_decode($response, true);
+    if ($jsonRes && isset($jsonRes['message'])) {
+        $errorMsg .= " - " . $jsonRes['message'];
+    } elseif (!empty($curlError)) {
+        $errorMsg .= " - " . $curlError;
+    } else {
+        $errorMsg .= " - " . substr(strip_tags($response), 0, 150);
+    }
+    
+    return "ERROR:" . $errorMsg;
 }
 
 if (empty($_SESSION['csrf_token'])) {
@@ -279,7 +322,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
     $allowedMethods  = ['gcash', 'bank', 'cash'];
     $err = '';
     $rentalRow = null;
-    $destination = '';
     $dbFilePath = '';
 
     if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)($_POST['csrf_token'] ?? ''))) {
@@ -374,13 +416,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
         if (!in_array($fileExt, ['jpg', 'jpeg', 'png', 'pdf'], true) || !upload_content_ok($fileTmp, $fileExt)) {
             $err = 'Invalid file format. Only JPG, PNG, and PDF are allowed.';
         } else {
-            $uploadDir = dirname(__DIR__) . '/uploads/payments/';
-            if (!is_dir($uploadDir)) @mkdir($uploadDir, 0755, true);
             $newFileName = 'PAY_' . $rentalId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExt;
-            $destination = $uploadDir . $newFileName;
-            $dbFilePath = 'uploads/payments/' . $newFileName;
-            if (!move_uploaded_file($fileTmp, $destination)) {
-                $err = 'Failed to upload payment receipt file.';
+            
+            // ✅ UPLOAD TO SUPABASE
+            $supabaseResult = uploadToSupabase($fileTmp, $newFileName, $supabaseBucket, $supabaseUrl, $supabaseKey);
+            
+            if (strpos($supabaseResult, 'ERROR:') === 0) {
+                $err = 'Cloud Upload Failed: ' . substr($supabaseResult, 6);
+            } else {
+                $dbFilePath = $supabaseResult; // I-save ang Supabase URL sa DB
             }
         }
     }
@@ -412,9 +456,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment_proof'
             $bizLabel = !empty($rentalRow['business_name']) ? $rentalRow['business_name'] : ($rentalRow['rental_name'] ?? 'a property');
             notifyStaffNewPayment($conn, $userName, $bizLabel, $amountDb, $referenceNo);
 
-            $_SESSION['flash_success'] = "Payment proof submitted successfully! Awaiting LGU Treasury verification. You will be notified once it is verified.";
+            $_SESSION['flash_success'] = "Payment proof submitted successfully! Awaiting LGU Treasury verification.";
         } catch (PDOException $e) {
-            if ($destination !== '' && is_file($destination)) @unlink($destination);
             error_log('[payments] insert: ' . $e->getMessage());
             $err = 'We could not save your payment. Please try again.';
         }
@@ -680,7 +723,6 @@ try {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
         body.drawer-open { overflow: hidden !important; }
         body.drawer-open #aiAssistantWrapper { display: none !important; }
 
@@ -724,7 +766,7 @@ try {
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
+        /* STICKY HEADER */
         .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
@@ -1090,7 +1132,6 @@ try {
                 padding: 0 0 0 16px;
                 background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
             }
-            /* FIX: Idinagdag ang align-right sa selector at !important */
             .nav-item.open .nav-dropdown,
             .nav-item.align-right.open .nav-dropdown { 
                 max-height: 600px !important; 
@@ -1389,7 +1430,6 @@ try {
                 </div>
             </header>
 
-            <!-- FIX: OVERLAY AY INILIPAT SA LOOB NG STICKY-HEADER PARA MAGKASAMA SILA NG DRAWER SA STACKING CONTEXT -->
             <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
 
@@ -1655,7 +1695,7 @@ try {
                                 $bizLabel = !empty($payment['business_name']) ? $payment['business_name'] : ($payment['rental_name'] ?? '');
                                 $purposeVal = (string)($payment['payment_purpose'] ?? '');
                                 $proofPath = (string)($payment['proof_image'] ?? '');
-                                $proofOk = ($proofPath !== '' && preg_match('#^uploads/payments/[A-Za-z0-9_.\-]+$#', $proofPath));
+                                $proofOk = ($proofPath !== '');
                                 $rejectReason = ($group === 'rejected' && $rejectCol && !empty($payment[$rejectCol])) ? (string)$payment[$rejectCol] : '';
                                 $submittedAt = !empty($payment['created_at']) ? date('M d, Y h:i A', strtotime($payment['created_at'])) : '';
                                 $verifiedAt = ($hasVerifiedAt && !empty($payment['verified_at'])) ? date('M d, Y h:i A', strtotime($payment['verified_at'])) : '';
@@ -1691,7 +1731,7 @@ try {
                                     <div class="act-btns">
                                         <?php if ($proofOk): ?>
                                             <button type="button" class="act-btn" onclick="viewProof(this)"
-                                                    data-url="../<?php echo h($proofPath); ?>"
+                                                    data-url="<?php echo h(filter_var($proofPath, FILTER_VALIDATE_URL) ? $proofPath : '../' . $proofPath); ?>"
                                                     data-title="<?php echo h('#' . $refVal . ' - ' . $bizLabel); ?>">
                                                 <i class="fa-solid fa-eye"></i> Proof
                                             </button>
@@ -1925,7 +1965,7 @@ try {
         </div>
     </div>
 
-    <!-- AI ASSISTANT (FIX: z-index lowered to 1050) -->
+    <!-- AI ASSISTANT -->
     <div id="aiAssistantWrapper" style="position:fixed; bottom:calc(25px + var(--safe-bottom)); right:calc(25px + var(--safe-right)); z-index:1050; font-family:'Plus Jakarta Sans', sans-serif;">
         <button id="aiToggleBtn" style="width:55px; height:55px; border-radius:50%; background:linear-gradient(135deg, #dc2626, #991b1b); border:none; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 10px 25px rgba(220, 38, 38, 0.4); display:flex; align-items:center; justify-content:center;" title="Ask AI Assistant">
             <i class="fa-solid fa-robot"></i>
@@ -2192,6 +2232,7 @@ try {
         body.innerHTML = '';
         const isPdf = /\.pdf$/i.test(url);
         document.querySelector('#proofModal .modal-dialog')?.classList.toggle('is-pdf', isPdf);
+        
         if (isPdf) {
             const f = document.createElement('iframe');
             f.className = 'proof-frame'; f.src = url; body.appendChild(f);
@@ -2199,6 +2240,7 @@ try {
             const i = document.createElement('img');
             i.className = 'proof-img'; i.alt = 'Payment proof'; i.src = url; body.appendChild(i);
         }
+        
         const open = document.createElement('a');
         open.className = 'proof-open'; open.href = url; open.target = '_blank'; open.rel = 'noopener';
         open.innerHTML = '<i class="fa-solid fa-up-right-from-square me-1"></i> Open full size';
