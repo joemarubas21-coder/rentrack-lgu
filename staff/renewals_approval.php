@@ -2,17 +2,40 @@
 require_once __DIR__ . '/../config/session.php'; app_session_start();
 date_default_timezone_set('Asia/Manila');
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "staff") {
-    header("Location: ../login.php");
-    exit();
+if (!isset($_SESSION['regenerated'])) {
+    session_regenerate_id(true);
+    $_SESSION['regenerated'] = time();
 }
 
 require_once("../config/db.php");
 require_once("includes/auth.php");
 
-/* =====================================================
-   HELPER FUNCTIONS FOR PDO & POSTGRESQL & HTML BUILDER
-===================================================== */
+// ✅ SUPABASE CREDENTIALS (NAAYOS NA ANG URL - DALAWANG Q NA)
+$supabaseUrl = 'https://rtjphvbrbaqqftkyjqkj.supabase.co'; 
+$supabaseKey = getenv('SUPABASE_SECRET_KEY'); // Kukunin na mula sa Render Environment Variable
+$supabaseBucket = 'renewals';
+
+$userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+
+if ($userId === 0) {
+    header('Location: login.php');
+    exit;
+}
+
+$userName = isset($_SESSION['fullname']) && !empty(trim($_SESSION['fullname']))
+    ? htmlspecialchars(trim($_SESSION['fullname']), ENT_QUOTES, 'UTF-8')
+    : 'Owner';
+$userInitial = strtoupper(substr(trim($userName), 0, 1));
+
+if (!function_exists('safe_error')) {
+    function safe_error($e) {
+        error_log('[renew_documents] ' . $e->getMessage());
+        return 'Something went wrong. Please try again.';
+    }
+}
+
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+
 function tableExists($conn, $tableName) {
     try {
         $stmt = $conn->prepare("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :t)");
@@ -20,614 +43,331 @@ function tableExists($conn, $tableName) {
         return (bool)$stmt->fetchColumn();
     } catch (PDOException $e) { return false; }
 }
-
 function columnExists($conn, $tableName, $columnName) {
-    if (!tableExists($conn, $tableName)) return false;
     try {
         $stmt = $conn->prepare("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :t AND column_name = :c)");
         $stmt->execute([':t' => strtolower($tableName), ':c' => strtolower($columnName)]);
         return (bool)$stmt->fetchColumn();
     } catch (PDOException $e) { return false; }
 }
-
-/* PERMIT PREFIX MAP */
-function getPermitPrefixMap() {
-    return [
-        'Business Permit'                    => 'BP',
-        'Sanitary Permit'                    => 'SP',
-        'Fire Safety Inspection Certificate' => 'FSIC',
-        'Barangay Clearance'                 => 'BC',
-        'Health Certificates'                => 'HC',
-        'Lease Contract'                     => 'LC',
-        'Lease Clearance Certificate'        => 'LCC',
-        'Occupancy Compliance Permit'        => 'OCP',
-        'Others'                             => 'PERMIT',
-    ];
-}
-
-/* PERMIT TYPE CONFIGURATION */
-function getPermitTypeConfig($permitType) {
-    $types = [
-        'Business Permit' => [
-            'label'       => "Business / Mayor's Permit (Santiago)",
-            'certTitle'   => "Certificate of Business Permit &amp; Mayor's Clearance",
-            'office'      => "Office of the City Mayor &bull; Business Permits &amp; Licensing Office",
-            'legalBasis'  => "This certification is hereby granted pursuant to the Revenue Code and applicable municipal ordinances of the City of Santiago, certifying that the establishment named below has satisfactorily complied with the requirements for the operation of a business within the city's jurisdiction.",
-            'recordLabel' => 'Business / Establishment',
-            'clause'      => "Must be conspicuously displayed at the business establishment premises at all times. Non-transferable. Subject to inspection and revocation for cause.",
-            'sig1Role'    => 'City Treasurer',
-            'sig1Office'  => 'Collections &amp; Revenue Office',
-            'sig2Role'    => 'City Mayor / BPLO Head',
-        ],
-        'Sanitary Permit' => [
-            'label'       => 'Sanitary Permit',
-            'certTitle'   => 'Certificate of Sanitary Permit',
-            'office'      => 'City Health Office &bull; Sanitation Division',
-            'legalBasis'  => "This certification is hereby issued pursuant to the Sanitation Code of the Philippines and applicable municipal ordinances of the City of Santiago, confirming that the establishment named below has complied with the required sanitary standards and health regulations for its operations.",
-            'recordLabel' => 'Establishment / Business',
-            'clause'      => "Must be conspicuously displayed at the establishment. Subject to periodic sanitary inspection. Non-transferable. Revocable upon violation of the Sanitation Code.",
-            'sig1Role'    => 'City Health Officer',
-            'sig1Office'  => 'City Health Office',
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Fire Safety Inspection Certificate' => [
-            'label'       => 'Fire Safety Inspection Certificate (FSIC)',
-            'certTitle'   => 'Fire Safety Inspection Certificate',
-            'office'      => 'Bureau of Fire Protection &bull; City Fire Marshal Office',
-            'legalBasis'  => "This certification is hereby issued pursuant to the Fire Code of the Philippines (RA 9514) and its Implementing Rules and Regulations, confirming that the establishment named below has passed the required fire safety inspection and complies with fire safety standards.",
-            'recordLabel' => 'Establishment / Business',
-            'clause'      => "Must be conspicuously displayed at the establishment. Valid for the period stated unless sooner revoked. Subject to re-inspection. Non-transferable.",
-            'sig1Role'    => 'City Fire Marshal',
-            'sig1Office'  => 'Bureau of Fire Protection',
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Barangay Clearance' => [
-            'label'       => 'Barangay Clearance (for Business)',
-            'certTitle'   => 'Barangay Business Clearance',
-            'office'      => 'Barangay Hall &bull; Office of the Punong Barangay',
-            'legalBasis'  => "This clearance is hereby issued pursuant to the Local Government Code of 1991 (RA 7160) and applicable barangay ordinances, certifying that the business named below has no derogatory record and is cleared to operate within the territorial jurisdiction of the Barangay.",
-            'recordLabel' => 'Business / Establishment',
-            'clause'      => "This clearance is issued for the purpose of securing a Mayor's Permit. Valid for the period stated. Non-transferable. Revocable for cause.",
-            'sig1Role'    => 'Barangay Secretary',
-            'sig1Office'  => 'Barangay Hall',
-            'sig2Role'    => 'Punong Barangay',
-        ],
-        'Health Certificates' => [
-            'label'       => 'Health Certificates (Staff/Boarding House)',
-            'certTitle'   => 'Certificate of Health Compliance',
-            'office'      => 'City Health Office &bull; Environmental Health Division',
-            'legalBasis'  => "This certification is hereby issued pursuant to the Sanitation Code and applicable health ordinances of the City of Santiago, confirming that the personnel/staff or boarding house named below has complied with the required health and sanitation standards.",
-            'recordLabel' => 'Personnel / Boarding House',
-            'clause'      => "Issued to the named individual/establishment only. Non-transferable. Subject to revocation for violation of health and sanitation laws.",
-            'sig1Role'    => 'City Health Officer',
-            'sig1Office'  => 'City Health Office',
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Lease Contract' => [
-            'label'       => 'Lease Contract / Rental Agreement',
-            'certTitle'   => 'Certificate of Lease Contract Registration',
-            'office'      => 'Office of the City Assessor &bull; Zoning &amp; Rental Compliance Division',
-            'legalBasis'  => "This certification is hereby issued pursuant to the municipal rental registration and zoning ordinances of the City of Santiago, confirming that the lease or rental agreement for the property named below has been registered with, and reviewed by, this Office for compliance.",
-            'recordLabel' => 'Leased Property / Unit',
-            'clause'      => "This certification covers only the registration of the lease contract. It does not authorize business operations and does not substitute for a separate business permit. Non-transferable.",
-            'sig1Role'    => 'Zoning Administrator',
-            'sig1Office'  => "City Assessor's Office",
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Lease Clearance Certificate' => [
-            'label'       => 'Lease Clearance Certificate',
-            'certTitle'   => 'Certificate of Lease Clearance',
-            'office'      => 'Office of the City Assessor &bull; Zoning &amp; Rental Compliance Division',
-            'legalBasis'  => "This certification is hereby issued pursuant to the municipal rental registration and zoning ordinances of the City of Santiago, confirming that the lease or rental arrangement for the property named below has been registered with, and reviewed by, this Office for compliance with the applicable zoning classification and rental documentation requirements.",
-            'recordLabel' => 'Leased Property / Unit',
-            'clause'      => "This clearance covers only the registration and zoning compliance of the leased premises. It does not, by itself, authorize business operations and does not substitute for a separate business permit where required. Non-transferable.",
-            'sig1Role'    => 'Zoning Administrator',
-            'sig1Office'  => "City Assessor's Office",
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Occupancy Compliance Permit' => [
-            'label'       => 'Occupancy Compliance Permit',
-            'certTitle'   => 'Certificate of Occupancy Compliance',
-            'office'      => 'Office of the City Engineer &bull; Office of the Building Official',
-            'legalBasis'  => "This certification is hereby issued pursuant to the National Building Code and applicable municipal ordinances of the City of Santiago, confirming that the premises named below has undergone the required inspection and has satisfactorily complied with structural, safety, and occupancy standards for its declared use.",
-            'recordLabel' => 'Property / Premises',
-            'clause'      => "Must be conspicuously displayed at the premises. Subject to periodic re-inspection. Any structural alteration, change of use, or change of occupancy at the premises requires re-certification.",
-            'sig1Role'    => 'City Engineer / Building Official',
-            'sig1Office'  => 'Office of the Building Official',
-            'sig2Role'    => 'City Mayor',
-        ],
-        'Others' => [
-            'label'       => 'Other Permit / Certification',
-            'certTitle'   => 'Certificate of Permit / Certification',
-            'office'      => 'Office of the City Mayor &bull; Business Permits &amp; Licensing Office',
-            'legalBasis'  => "This certification is hereby issued pursuant to applicable municipal ordinances of the City of Santiago, confirming that the establishment named below has satisfactorily complied with the requirements for the issuance of this permit or certification.",
-            'recordLabel' => 'Business / Establishment',
-            'clause'      => "Must be conspicuously displayed at the establishment. Non-transferable. Subject to inspection and revocation for cause.",
-            'sig1Role'    => 'City Treasurer',
-            'sig1Office'  => 'Collections &amp; Revenue Office',
-            'sig2Role'    => 'City Mayor / BPLO Head',
-        ],
-    ];
-    return $types[$permitType] ?? $types['Business Permit'];
-}
-
-/* REUSABLE OFFICIAL PERMIT CERTIFICATE BUILDER */
-function buildPermitCertificateHtml(array $d) {
-    $cfg = getPermitTypeConfig($d['permitType']);
-    $displayPermitType = !empty($d['customPermitType']) ? $d['customPermitType'] : $cfg['label'];
-    $permitTitle = $displayPermitType . ' - ' . $d['bizName'];
-    $isPreview = !empty($d['isPreview']);
-    $permitNo = $d['permitNo'] ?? '';
-
-    $logoFile = __DIR__ . '/assets/images/images.jpg';
-    $logoSrc = '';
-    if (is_file($logoFile)) {
-        $logoSrc = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoFile));
+function displayField($row, $possibleFields) {
+    foreach ($possibleFields as $field) {
+        if (isset($row[$field]) && trim((string)$row[$field]) !== '') return htmlspecialchars((string)$row[$field]);
     }
-
-    $watermarkHtml = $isPreview
-        ? '<div class="preview-watermark">PREVIEW ONLY<span>Not Yet Official &mdash; Not Issued</span></div>'
-        : '';
-
-    $printBtn = $isPreview
-        ? '<div class="no-print preview-banner"><i class="fa-solid fa-eye" style="margin-right:8px;"></i> You are previewing this permit before it is issued. Nothing has been saved or sent to the owner yet.</div>'
-        : '<div class="no-print" style="text-align: right; margin-bottom: 20px; max-width: 820px; margin-left: auto; margin-right: auto;"><button onclick="window.print()" style="background: #dc2626; color: #fff; border: none; padding: 10px 22px; font-size: 14px; font-weight: 700; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-print" style="margin-right:8px;"></i>Print / Save as PDF</button></div>';
-
-    $permitNoRow = !empty($permitNo)
-        ? '<tr><td style="font-weight:700;">Permit Number</td><td><strong style="font-family:monospace;color:#dc2626;background:#fee2e2;padding:3px 10px;border-radius:6px;">' . htmlspecialchars($permitNo) . '</strong></td></tr>'
-        : '';
-
-    return '<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>' . htmlspecialchars($permitTitle) . '</title>
-    <style>
-        body { font-family: Georgia, "Times New Roman", Times, serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
-        .preview-banner { max-width: 820px; margin: 0 auto 18px auto; background: #fff7ed; border: 1px solid #fbbf24; color: #92400e; padding: 10px 18px; border-radius: 10px; font-family: "Inter", Arial, sans-serif; font-size: 13px; text-align: center; }
-        .certificate-container { position: relative; border: 10px double #dc2626; padding: 30px 20px; max-width: 820px; margin: 0 auto; background: #ffffff; box-shadow: 0 14px 44px rgba(0,0,0,0.1); overflow: hidden; }
-        .certificate-container::before { content: ""; position: absolute; inset: 10px; border: 1.5px solid #f87171; pointer-events: none; }
-        .preview-watermark { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%) rotate(-27deg); font-size: 38px; font-weight: 800; color: rgba(217,119,6,0.16); text-transform: uppercase; letter-spacing: 4px; text-align: center; line-height: 1.15; z-index: 1; white-space: nowrap; }
-        .preview-watermark span { display: block; font-size: 14px; letter-spacing: 2px; margin-top: 6px; }
-        .header { text-align: center; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid #dc2626; position: relative; z-index: 2; }
-        .header img { width: 85px; height: 85px; object-fit: contain; margin-bottom: 8px; }
-        .header h3 { margin: 1px 0; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 2px; color: #64748b; }
-        .header h1 { margin: 6px 0 2px; font-size: 20px; text-transform: uppercase; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; }
-        .header h2 { margin: 2px 0 0; font-size: 12px; text-transform: uppercase; font-weight: 600; color: #d97706; letter-spacing: 1px; }
-        .cert-kicker { display: inline-block; margin-top: 16px; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #ef4444; border-top: 1px solid #fecaca; border-bottom: 1px solid #fecaca; padding: 4px 14px; }
-        .cert-body { text-align: center; margin: 24px 0; position: relative; z-index: 2; }
-        .cert-title { font-size: 16px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #dc2626; margin: 16px 0 10px; }
-        .cert-body p.lead { font-size: 13px; line-height: 1.75; margin: 0 auto; max-width: 630px; color: #334155; }
-        .business-box { background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 16px; margin: 20px 0; border-radius: 8px; text-align: left; position: relative; }
-        .business-box::before { content: "OFFICIAL RECORD"; position: absolute; top: -10px; left: 22px; background: #ffffff; padding: 0 10px; font-size: 10px; letter-spacing: 2px; color: #dc2626; font-weight: 700; }
-        .business-box table { width: 100%; font-size: 13px; border-collapse: collapse; }
-        .business-box td { padding: 6px 0; border-bottom: 1px dotted #cbd5e1; display: block; width: 100%; color: #0f172a; }
-        @media(min-width: 576px) {
-            .certificate-container { padding: 46px 54px 40px; }
-            .business-box td { display: table-cell; }
-            .preview-watermark { font-size: 52px; }
-            .header h1 { font-size: 24px; }
-        }
-        .business-box tr:last-child td { border-bottom: none; }
-        .validity-strip { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 8px; align-items: center; }
-        @media(min-width: 576px) { .validity-strip { flex-direction: row; justify-content: center; gap: 48px; } }
-        .validity-strip .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; }
-        .validity-strip .val { font-size: 14px; font-weight: 700; color: #dc2626; margin-top: 2px; }
-        .clause { font-size: 11px; font-style: italic; color: #475569; margin-top: 10px; }
-        .sig-area { display: flex; flex-direction: column; margin-top: 34px; gap: 30px; position: relative; z-index: 2; }
-        @media(min-width: 576px) { .sig-area { flex-direction: row; justify-content: space-between; align-items: flex-end; } }
-        .sig-block { flex: 1; text-align: center; }
-        .sig-line { border-top: 1px solid #0f172a; width: 200px; margin: 30px auto 6px auto; }
-        .sig-block strong { font-size: 12px; color: #0f172a; }
-        .sig-block span { font-size: 10px; color: #64748b; }
-        .seal-box { width: 75px; height: 75px; margin: 0 auto 4px; border: 2px dashed #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; text-align: center; color: #dc2626; font-weight: 700; letter-spacing: 0.5px; line-height: 1.3; background: #fef2f2; }
-        .qr-box { display: none; }
-        @media(min-width: 768px) { .qr-box { position: absolute; bottom: 44px; right: 50px; width: 66px; height: 66px; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 7.5px; text-align: center; color: #64748b; background: repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 3px,#fff 3px,#fff 6px); z-index: 2; } }
-        .footer-seal { margin-top: 24px; font-size: 10px; text-align: center; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 10px; position: relative; z-index: 2; }
-        .footer-seal code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; word-break: break-all; color: #0f172a; }
-        @media print { body { padding: 0; background: #fff; } .no-print { display: none; } }
-    </style>
-</head>
-<body>
-    ' . $printBtn . '
-    <div class="certificate-container">
-        ' . $watermarkHtml . '
-        <div class="qr-box">SCAN&nbsp;TO<br>VERIFY</div>
-        <div class="header">
-            <img src="' . $logoSrc . '" alt="City of Santiago Seal">
-            <h3>Republic of the Philippines</h3>
-            <h3>Province of Isabela</h3>
-            <h1>City of Santiago</h1>
-            <h2>' . $cfg['office'] . '</h2>
-            <div class="cert-kicker">Official Municipal Document</div>
-        </div>
-
-        <div class="cert-body">
-            <p class="cert-title">' . $cfg['certTitle'] . '</p>
-            <p class="lead">' . $cfg['legalBasis'] . '</p>
-
-            <div class="business-box">
-                <table>
-                    <tr><td style="width:38%;font-weight:700;">Tracking Number</td><td><strong>' . htmlspecialchars($d['trackingNo']) . '</strong></td></tr>
-                    <tr><td style="font-weight:700;">' . htmlspecialchars($cfg['recordLabel']) . '</td><td><span style="font-size:15px;font-weight:700;color:#dc2626;">' . htmlspecialchars($d['bizName']) . '</span></td></tr>
-                    <tr><td style="font-weight:700;">Registered Owner</td><td>' . htmlspecialchars($d['ownerName'] ?: 'N/A') . '</td></tr>
-                    <tr><td style="font-weight:700;">Permit Classification</td><td>' . htmlspecialchars($displayPermitType) . '</td></tr>
-                    ' . $permitNoRow . '
-                    <tr><td style="font-weight:700;">Official Remarks</td><td>' . htmlspecialchars($d['notes']) . '</td></tr>
-                </table>
-            </div>
-
-            <div class="validity-strip">
-                <div><div class="lbl">Date Issued</div><div class="val">' . htmlspecialchars($d['issueDate']) . '</div></div>
-                <div><div class="lbl">Valid Until</div><div class="val" style="color:#d97706;">' . htmlspecialchars($d['expiryDateFormatted']) . '</div></div>
-            </div>
-
-            <p class="clause">&ldquo;' . $cfg['clause'] . '&rdquo;</p>
-        </div>
-
-        <div class="sig-area">
-            <div class="sig-block">
-                <div class="sig-line"></div>
-                <strong>' . htmlspecialchars($cfg['sig1Role']) . '</strong><br><span>' . $cfg['sig1Office'] . '</span>
-            </div>
-            <div class="sig-block">
-                <div class="seal-box">OFFICIAL<br>DRY SEAL</div>
-                <div class="sig-line" style="margin-top:0;"></div>
-                <strong>' . htmlspecialchars($cfg['sig2Role']) . '</strong><br><span>City of Santiago, Philippines</span>
-            </div>
-        </div>
-
-        <div class="footer-seal">
-            <p>Security Verification Hash: <code>' . htmlspecialchars($d['securityHash']) . '</code></p>
-            <p>' . ($isPreview ? 'Preview generated' : 'Verified and generated securely') . ' via RENTRACK LGU Official Municipal System &bull; Issued by Staff ID: ' . (int)$d['staffId'] . '</p>
-        </div>
-    </div>
-</body>
-</html>';
+    return '—';
 }
 
-// ==========================
-// AJAX REQUEST HANDLERS
-// ==========================
-if (isset($_GET['ajax_action'])) {
-    $staffId = (int)($_SESSION['user_id'] ?? 0);
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (IBINABALIK ANG TOTOONG ERROR)
+function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
+    $mimeType = mime_content_type($filePath);
+    $fileData = file_get_contents($filePath);
 
-    if ($_GET['ajax_action'] === 'search') {
-        $query = trim($_GET['q'] ?? '');
-        if (strlen($query) >= 2) {
-            $searchTerm = '%' . $query . '%';
-            $sql = "
-                SELECT r.id, r.tracking_no, r.business_name, r.status, u.fullname AS owner_name
-                FROM rentals r
-                LEFT JOIN users u ON r.user_id = u.id
-                WHERE (r.tracking_no ILIKE :q OR r.business_name ILIKE :q OR u.fullname ILIKE :q)
-                  AND r.is_deleted = FALSE
-                LIMIT 5
-            ";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute([':q' => $searchTerm]);
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "$supabaseUrl/storage/v1/object/$bucket/$fileName");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
+    
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "apikey: $supabaseKey", 
+        "Content-Type: $mimeType"
+    ]);
 
-            if ($results && count($results) > 0) {
-                echo '<div style="display: flex; flex-direction: column; gap: 8px;">';
-                foreach ($results as $row) {
-                    $status = $row['status'] ?? 'Draft';
-                    $badgeBg = '#f3f4f6';
-                    $badgeColor = '#4b5563';
-                    if ($status === 'Pending') { $badgeBg = '#fef3c7'; $badgeColor = '#d97706'; }
-                    elseif ($status === 'Approved') { $badgeBg = '#dcfce7'; $badgeColor = '#15803d'; }
-                    elseif ($status === 'Rejected') { $badgeBg = '#fee2e2'; $badgeColor = '#b91c1c'; }
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
 
-                    echo '<a href="view_rental.php?id=' . $row['id'] . '" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; color: #111827; text-decoration: none; transition: all 0.2s ease;">';
-                    echo '<div style="display: flex; flex-direction: column; gap: 4px;">';
-                    echo '<div style="font-weight: 600; font-size: 14px; color: #dc2626;">' . htmlspecialchars($row['tracking_no']) . ' <span style="color: #9ca3af; font-weight: 400;">•</span> ' . htmlspecialchars($row['business_name']) . '</div>';
-                    echo '<div style="font-size: 12px; color: #4b5563;"><i class="fa-solid fa-user-shield" style="font-size: 11px; margin-right: 4px;"></i> Owner: ' . htmlspecialchars($row['owner_name'] ?? 'N/A') . '</div>';
-                    echo '</div>';
-                    echo '<span style="padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: ' . $badgeBg . '; color: ' . $badgeColor . '; text-transform: uppercase;">' . htmlspecialchars($status) . '</span>';
-                    echo '</a>';
-                }
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return "$supabaseUrl/storage/v1/object/public/$bucket/$fileName";
+    }
+    
+    $errorMsg = "HTTP $httpCode";
+    $jsonRes = json_decode($response, true);
+    if ($jsonRes && isset($jsonRes['message'])) {
+        $errorMsg .= " - " . $jsonRes['message'];
+    } elseif (!empty($curlError)) {
+        $errorMsg .= " - " . $curlError;
+    } else {
+        $errorMsg .= " - " . substr(strip_tags($response), 0, 150);
+    }
+    
+    return "ERROR:" . $errorMsg;
+}
+
+/* MARK NOTIF */
+if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'mark_notif_read') {
+    header('Content-Type: application/json; charset=utf-8');
+    $notifId = (int) ($_GET['id'] ?? 0);
+    if ($userId > 0 && $notifId > 0 && tableExists($conn, 'notifications')) {
+        try {
+            $stmtUpdate = $conn->prepare("UPDATE notifications SET is_read = TRUE WHERE id = :nid AND user_id = :uid");
+            $stmtUpdate->execute([':nid' => $notifId, ':uid' => $userId]);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) { echo json_encode(['success' => false, 'error' => safe_error($e)]); }
+    } else { echo json_encode(['success' => false]); }
+    exit;
+}
+
+/* CLEAR NOTIFS */
+if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'clear_notifs') {
+    header('Content-Type: application/json; charset=utf-8');
+    if ($userId > 0 && tableExists($conn, 'notifications')) {
+        try {
+            $stmtDelete = $conn->prepare("DELETE FROM notifications WHERE user_id = :uid");
+            $stmtDelete->execute([':uid' => $userId]);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) { echo json_encode(['success' => false, 'error' => safe_error($e)]); }
+    } else { echo json_encode(['success' => false]); }
+    exit;
+}
+
+/* AI ASSISTANT */
+if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'ai_chat') {
+    header('Content-Type: application/json; charset=utf-8');
+    $question = trim(strtolower($_GET['msg'] ?? ''));
+    $totalRentals = 0; $totalRenewals = 0; $pendingRenewals = 0;
+
+    if (tableExists($conn, 'rentals')) {
+        $stmtRentals = $conn->prepare("SELECT COUNT(*) FROM rentals WHERE user_id = :uid AND is_deleted = '0'");
+        $stmtRentals->execute([':uid' => $userId]);
+        $totalRentals = (int)$stmtRentals->fetchColumn();
+    }
+    if (tableExists($conn, 'permit_renewals')) {
+        $stmtRen = $conn->prepare("SELECT COUNT(*) FROM permit_renewals WHERE user_id = :uid");
+        $stmtRen->execute([':uid' => $userId]);
+        $totalRenewals = (int)$stmtRen->fetchColumn();
+
+        $stmtP = $conn->prepare("SELECT COUNT(*) FROM permit_renewals WHERE user_id = :uid AND LOWER(status::text) = 'pending'");
+        $stmtP->execute([':uid' => $userId]);
+        $pendingRenewals = (int)$stmtP->fetchColumn();
+    }
+    $reply = "Hello! I am Rentrack AI. You can ask me about your renewals, permits, rentals, or payments.";
+    if (strpos($question, 'renew') !== false) {
+        $reply = "You have {$totalRenewals} renewal request(s), with {$pendingRenewals} still pending verification.";
+    } elseif (strpos($question, 'permit') !== false) {
+        $reply = "You can submit permit renewals online here. Just select a rental, document type, and attach a supporting file.";
+    } elseif (strpos($question, 'rental') !== false || strpos($question, 'total') !== false) {
+        $reply = "You have {$totalRentals} registered rentals under your account.";
+    } elseif (strpos($question, 'payment') !== false) {
+        $reply = "Payments for renewals are verified by the LGU Treasurer. Visit the Payments page for details.";
+    } elseif (strpos($question, 'hello') !== false || strpos($question, 'hi') !== false) {
+        $reply = "Hello! How can I help you today?";
+    } else {
+        $reply = "You have {$totalRenewals} renewal requests and {$totalRentals} rentals. Need help with permit renewals?";
+    }
+    echo json_encode(['reply' => $reply]);
+    exit;
+}
+
+/* AJAX SEARCH */
+if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
+    $query = trim($_GET['q'] ?? '');
+    if (strlen($query) >= 2 && tableExists($conn, 'rentals')) {
+        $searchTerm = '%' . $query . '%';
+        $sql = "SELECT id, tracking_no, business_name, status, rental_name FROM rentals 
+                WHERE user_id = :uid AND is_deleted = '0' 
+                  AND (tracking_no ILIKE :q1 OR business_name ILIKE :q2 OR rental_name ILIKE :q3) LIMIT 5";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([':uid'=>$userId, ':q1'=>$searchTerm, ':q2'=>$searchTerm, ':q3'=>$searchTerm]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!empty($rows)) {
+            echo '<div style="display:flex; flex-direction:column; gap:8px;">';
+            foreach ($rows as $row) {
+                $status = $row['status'] ?? 'Draft';
+                $badgeBg = 'rgba(220,38,38,0.1)'; $badgeColor = '#dc2626';
+                if (strtolower($status)==='pending') { $badgeBg='rgba(217,119,6,0.15)'; $badgeColor='#d97706'; }
+                elseif (in_array(strtolower($status), ['approved','active'])) { $badgeBg='rgba(5,150,105,0.15)'; $badgeColor='#059669'; }
+                echo '<a href="view_rental.php?id='.$row['id'].'" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#0f172a; text-decoration:none; gap:10px; flex-wrap:wrap;">';
+                echo '<div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">';
+                echo '<div style="font-weight:700; font-size:13px; color:#dc2626; word-break:break-word;">'.htmlspecialchars($row['tracking_no'] ?? '#'.$row['id']).' <span style="color:#94a3b8;">•</span> '.htmlspecialchars($row['business_name'] ?: $row['rental_name']).'</div>';
+                echo '<div style="font-size:11px; color:#64748b;">Property: '.htmlspecialchars($row['rental_name'] ?? 'N/A').'</div>';
                 echo '</div>';
-            } else {
-                echo '<div style="text-align: center; padding: 30px; color: #6b7280; font-size: 13px;"><i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i> No matching results found.</div>';
+                echo '<span style="padding:4px 10px; border-radius:20px; font-size:10px; font-weight:700; background:'.$badgeBg.'; color:'.$badgeColor.'; text-transform:uppercase; flex-shrink:0;">'.htmlspecialchars($status).'</span>';
+                echo '</a>';
             }
-        }
-        exit;
-    }
-
-    if ($_GET['ajax_action'] === 'read_notif') {
-        if ($staffId > 0) {
-            $stmt = $conn->prepare("UPDATE notifications SET is_read = TRUE WHERE (user_id = :staff_id OR user_id = 0 OR user_id IS NULL) AND is_read = FALSE");
-            $stmt->execute([':staff_id' => $staffId]);
-            echo 'success';
-        }
-        exit;
-    }
-}
-
-$staffName = $_SESSION['fullname'] ?? "Staff";
-$staffRole = $_SESSION['role'] ?? "Staff";
-$staffId = (int)($_SESSION['user_id'] ?? 0);
-$staffInitial = strtoupper(substr(trim($staffName), 0, 1));
-
-$profilePicture = '';
-if (columnExists($conn, 'users', 'profile_picture')) {
-    $userProfileQuery = $conn->prepare("SELECT profile_picture FROM users WHERE id = :id LIMIT 1");
-    $userProfileQuery->execute([':id' => $staffId]);
-    $profilePicture = $userProfileQuery->fetchColumn() ?: '';
-}
-
-// Handle Approval o Rejection Action
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
-    $renewalId = (int)$_POST['renewal_id'];
-    $rentalId = (int)($_POST['rental_id'] ?? 0);
-    $action = $_POST['action_type'];
-    $newExpiryDate = $_POST['new_expiry_date'] ?? null;
-    
-    $newStatus = ($action === 'Approved') ? 'Approved' : 'Rejected';
-
-    try {
-        $conn->beginTransaction();
-
-        // 1. Update Renewal Status
-        $updateStmt = $conn->prepare("UPDATE permit_renewals SET status = :status WHERE id = :id");
-        $updateStmt->execute([':status' => $newStatus, ':id' => $renewalId]);
-
-        if ($action === 'Approved' && !empty($newExpiryDate) && $rentalId > 0) {
-            // 2. Update Rental Expiry Date
-            $expiryCol = columnExists($conn, 'rentals', 'permit_expiry_date') ? 'permit_expiry_date' : (columnExists($conn, 'rentals', 'expiry_date') ? 'expiry_date' : null);
-            
-            if ($expiryCol) {
-                $updateRentalSql = "UPDATE rentals SET {$expiryCol} = :expiry, status = 'Approved' WHERE id = :rental_id";
-                $updateRentalStmt = $conn->prepare($updateRentalSql);
-                $updateRentalStmt->execute([
-                    ':expiry' => $newExpiryDate,
-                    ':rental_id' => $rentalId
-                ]);
-            }
-
-            // 3. GENERATE NEW HTML PERMIT AND SAVE TO DATABASE
-            $rStmt = $conn->prepare("
-                SELECT r.id, r.tracking_no, r.business_name, r.rental_name, r.user_id, u.fullname as owner_name 
-                FROM rentals r 
-                LEFT JOIN users u ON r.user_id = u.id 
-                WHERE r.id = :rid
-            ");
-            $rStmt->execute([':rid' => $rentalId]);
-            $rentalInfo = $rStmt->fetch(PDO::FETCH_ASSOC);
-
-            $renStmt = $conn->prepare("SELECT document_type FROM permit_renewals WHERE id = :id");
-            $renStmt->execute([':id' => $renewalId]);
-            $renewalDocType = $renStmt->fetchColumn() ?: 'Business Permit';
-
-            if ($rentalInfo && !empty($rentalInfo['user_id'])) {
-                $bizName = $rentalInfo['business_name'] ?: $rentalInfo['rental_name'];
-                $ownerId = (int)$rentalInfo['user_id'];
-                $trackingNo = $rentalInfo['tracking_no'] ?? 'TRK-' . $rentalId;
-                $folderPath = 'user_' . $ownerId;
-                
-                $displayPermitType = $renewalDocType;
-                $permitTitle = $displayPermitType . ' - ' . $bizName;
-                $storedName = 'permit_renewal_' . uniqid('', true) . '.html';
-                
-                $securityHash = hash('sha256', $rentalId . $bizName . time());
-                $issueDate = date('F d, Y');
-                $expiryDateFormatted = date('F d, Y', strtotime($newExpiryDate));
-
-                $prefixMap = getPermitPrefixMap();
-                $permitPrefix = $prefixMap[$displayPermitType] ?? 'PERMIT';
-                $year = date('Y');
-                
-                $permitSeqStmt = $conn->prepare("
-                    SELECT COUNT(*) + 1 
-                    FROM documents 
-                    WHERE business_permit_no LIKE :prefix
-                      AND EXTRACT(YEAR FROM uploaded_at) = :yr
-                ");
-                $permitSeqStmt->execute([
-                    ':prefix' => $permitPrefix . '-' . $year . '-%',
-                    ':yr'     => $year
-                ]);
-                $seq = (int)$permitSeqStmt->fetchColumn();
-                $generatedPermitNo = $permitPrefix . '-' . $year . '-RE' . str_pad($seq, 3, '0', STR_PAD_LEFT);
-
-                $permitHtml = buildPermitCertificateHtml([
-                    'trackingNo'          => $trackingNo,
-                    'bizName'             => $bizName,
-                    'ownerName'           => $rentalInfo['owner_name'] ?? 'N/A',
-                    'permitType'          => $displayPermitType,
-                    'customPermitType'    => '',
-                    'issueDate'           => $issueDate,
-                    'expiryDateFormatted' => $expiryDateFormatted,
-                    'notes'               => 'Renewed. Valid until: ' . $newExpiryDate . '.',
-                    'securityHash'        => $securityHash,
-                    'staffId'             => $staffId,
-                    'logo'                => 'assets/images/images.jpg',
-                    'isPreview'           => false,
-                    'permitNo'            => $generatedPermitNo,
-                ]);
-
-                $insDocStmt = $conn->prepare("
-                    INSERT INTO documents (
-                        user_id, rental_id, title, type, notes, file_name, stored_name, owner_folder_path,
-                        business_permit_no, permit_expiry_date, permit_status, uploaded_at, permit_html
-                    )
-                    VALUES (
-                        :uid, :rid, :title, :type, :notes, :fname, :sname, :fpath,
-                        :bpno, :pexp, :pstat, NOW(), :permit_html
-                    )
-                ");
-                $insDocStmt->execute([
-                    ':uid'         => $ownerId,
-                    ':rid'         => $rentalId,
-                    ':title'       => $permitTitle,
-                    ':type'        => 'Permit',
-                    ':notes'       => 'Renewed. Valid until: ' . $newExpiryDate . '. Official HTML Certificate.',
-                    ':fname'       => $displayPermitType . '_' . preg_replace('/[^a-zA-Z0-9]/', '_', $bizName) . '_RENEWED.html',
-                    ':sname'       => $storedName,
-                    ':fpath'       => $folderPath,
-                    ':bpno'        => $generatedPermitNo,
-                    ':pexp'        => $newExpiryDate,
-                    ':pstat'       => 'Active',
-                    ':permit_html' => $permitHtml
-                ]);
-            }
-        }
-
-        $conn->commit();
-        $_SESSION['success'] = "Renewal request successfully updated and new permit generated!";
-        header("Location: renewals_approval.php");
-        exit();
-
-    } catch (PDOException $e) {
-        if ($conn->inTransaction()) {
-            $conn->rollBack();
-        }
-        $_SESSION['error'] = "Failed to update renewal request: " . safe_error($e);
-    }
-}
-
-// Notifications
-$notificationCount = 0;
-if (tableExists($conn, 'notifications')) {
-    $notifStmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE (user_id = :sid OR user_id = 0 OR user_id IS NULL) AND is_read = FALSE");
-    $notifStmt->execute([':sid' => $staffId]);
-    $notificationCount = (int)$notifStmt->fetchColumn();
-}
-
-$notifications = [];
-if (tableExists($conn, 'notifications')) {
-    $notifListStmt = $conn->prepare("
-        SELECT id, title, message, created_at 
-        FROM notifications 
-        WHERE (user_id = :sid OR user_id = 0 OR user_id IS NULL) 
-        ORDER BY created_at DESC 
-        LIMIT 5
-    ");
-    $notifListStmt->execute([':sid' => $staffId]);
-    $notifications = $notifListStmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Pending renewals count
-$pendingRenewalsCount = 0;
-if (tableExists($conn, 'permit_renewals')) {
-    $pendRenewalsQuery = $conn->query("SELECT COUNT(*) FROM permit_renewals WHERE status = 'Pending'");
-    if ($pendRenewalsQuery) {
-        $pendingRenewalsCount = (int)$pendRenewalsQuery->fetchColumn();
-    }
-}
-
-// Financial counts (Payments lang - inalis na ang Remittances)
-$pendingPayments  = 0;
-$verifiedPayments = 0;
-$totalPayments    = 0;
-
-if (tableExists($conn, 'payments')) {
-    $q1 = $conn->query("SELECT COUNT(*) FROM payments WHERE status = 'Pending'");
-    if ($q1) $pendingPayments = (int)$q1->fetchColumn();
-
-    $q2 = $conn->query("SELECT COUNT(*) FROM payments WHERE status IN ('Paid', 'Verified')");
-    if ($q2) $verifiedPayments = (int)$q2->fetchColumn();
-
-    $q3 = $conn->query("SELECT COALESCE(SUM(amount_paid), 0) FROM payments WHERE status IN ('Paid', 'Verified')");
-    if ($q3) $totalPayments = (float)$q3->fetchColumn();
-}
-
-// =========================================================
-// KUNIN ANG RENEWAL REQUESTS JOIN SA PAYMENTS
-// =========================================================
-$renewals = [];
-if (tableExists($conn, 'permit_renewals')) {
-    $hasPayments = tableExists($conn, 'payments');
-    
-    if ($hasPayments) {
-        $hasRenewalIdCol = columnExists($conn, 'payments', 'renewal_id');
-        $hasVoidedCol = columnExists($conn, 'payments', 'is_voided');
-        
-        $voidFilter = $hasVoidedCol ? "AND (p2.is_voided = FALSE OR p2.is_voided IS NULL)" : "";
-        
-        if ($hasRenewalIdCol) {
-            $query = "
-                SELECT pr.*, 
-                       r.business_name, r.rental_name, r.tracking_no, 
-                       u.fullname as owner_name,
-                       p.or_number,
-                       COALESCE(p.or_number, 'PAY-' || p.id) as final_ref_no,
-                       p.amount_paid, 
-                       p.status::text as payment_status, 
-                       p.payment_date, 
-                       p.payment_method
-                FROM permit_renewals pr 
-                JOIN rentals r ON pr.rental_id = r.id 
-                JOIN users u ON pr.user_id = u.id 
-                LEFT JOIN payments p ON p.id = (
-                    SELECT p2.id 
-                    FROM payments p2 
-                    WHERE p2.renewal_id = pr.id 
-                      $voidFilter
-                      AND LOWER(p2.status::text) IN ('paid', 'completed', 'success', 'verified', 'approved')
-                    ORDER BY p2.payment_date DESC, p2.id DESC 
-                    LIMIT 1
-                )
-                ORDER BY pr.created_at DESC
-            ";
+            echo '</div>';
         } else {
-            $query = "
-                SELECT pr.*, 
-                       r.business_name, r.rental_name, r.tracking_no, 
-                       u.fullname as owner_name,
-                       p.or_number,
-                       COALESCE(p.or_number, 'PAY-' || p.id) as final_ref_no,
-                       p.amount_paid, 
-                       p.status::text as payment_status, 
-                       p.payment_date, 
-                       p.payment_method
-                FROM permit_renewals pr 
-                JOIN rentals r ON pr.rental_id = r.id 
-                JOIN users u ON pr.user_id = u.id 
-                LEFT JOIN payments p ON p.id = (
-                    SELECT p2.id 
-                    FROM payments p2 
-                    WHERE p2.rental_id = pr.rental_id 
-                      $voidFilter
-                      AND LOWER(p2.status::text) IN ('paid', 'completed', 'success', 'verified', 'approved')
-                    ORDER BY p2.payment_date DESC, p2.id DESC 
-                    LIMIT 1
-                )
-                ORDER BY pr.created_at DESC
-            ";
+            echo '<div style="text-align:center; padding:30px; color:#64748b; font-size:13px;"><i class="fa-solid fa-folder-open" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.5;"></i> No matching rental records found.</div>';
+        }
+    }
+    exit;
+}
+
+/* FORM SUBMISSION */
+$flashSuccess = ''; $flashError = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
+    $rentalId = (int)($_POST['rental_id'] ?? 0);
+    $documentType = trim($_POST['document_type'] ?? '');
+    $currentExpiry = trim($_POST['current_expiry_date'] ?? '');
+    $remarks = trim($_POST['remarks'] ?? '');
+
+    $uploadedFileUrl = '';
+    if (isset($_FILES['supporting_file']) && $_FILES['supporting_file']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['supporting_file']['tmp_name'];
+        $fileName = $_FILES['supporting_file']['name'];
+        $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+        
+        if (in_array($fileExtension, $allowedExtensions, true) && upload_content_ok($fileTmpPath, $fileExtension)) {
+            $newFileName = 'renewal_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
+            
+            // ✅ UPLOAD TO SUPABASE
+            $supabaseResult = uploadToSupabase($fileTmpPath, $newFileName, $supabaseBucket, $supabaseUrl, $supabaseKey);
+            
+            // ✅ Check kung may error (nag-uumpisa sa "ERROR:")
+            if (strpos($supabaseResult, 'ERROR:') === 0) {
+                $flashError = 'Upload Failed: ' . substr($supabaseResult, 6); // Ipakita ang totoong error sa screen
+            } else {
+                $uploadedFileUrl = $supabaseResult; 
+            }
+        } else {
+            $flashError = 'Invalid file format. Please upload PDF or image files (JPG, PNG).';
         }
     } else {
-        $query = "
-            SELECT pr.*, r.business_name, r.rental_name, r.tracking_no, u.fullname as owner_name 
-            FROM permit_renewals pr 
-            JOIN rentals r ON pr.rental_id = r.id 
-            JOIN users u ON pr.user_id = u.id 
-            ORDER BY pr.created_at DESC
-        ";
+        $flashError = 'Please attach a supporting document.';
     }
-    
-    try {
-        $stmt = $conn->query($query);
-        if ($stmt) {
-            $renewals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($flashError) && $rentalId > 0 && !empty($documentType)) {
+        $insertStmt = $conn->prepare("INSERT INTO permit_renewals (user_id, rental_id, document_type, current_expiry_date, supporting_file, remarks, status, created_at) VALUES (:uid, :rid, :dtype, :exp, :sfile, :rem, 'Pending', NOW())");
+        if ($insertStmt && $insertStmt->execute([
+            ':uid' => $userId, ':rid' => $rentalId, ':dtype' => $documentType,
+            ':exp' => $currentExpiry, ':sfile' => $uploadedFileUrl, ':rem' => $remarks
+        ])) {
+            try {
+                $bizLookup = $conn->prepare("SELECT business_name, rental_name, tracking_no FROM rentals WHERE id = :rid LIMIT 1");
+                $bizLookup->execute([':rid' => $rentalId]);
+                $bizRow = $bizLookup->fetch(PDO::FETCH_ASSOC);
+                $bizName = !empty($bizRow['business_name']) ? $bizRow['business_name'] : ($bizRow['rental_name'] ?? 'a property');
+                $trackingNo = $bizRow['tracking_no'] ?? '';
+
+                if (tableExists($conn, 'notifications') && columnExists($conn, 'users', 'role')) {
+                    $hasLink = columnExists($conn, 'notifications', 'link');
+                    $hasTargetUrl = columnExists($conn, 'notifications', 'target_url');
+                    $hasIsRead = columnExists($conn, 'notifications', 'is_read');
+                    $linkColumn = $hasLink ? 'link' : ($hasTargetUrl ? 'target_url' : null);
+
+                    $adminStmt = $conn->query("SELECT id FROM users WHERE LOWER(role::text) = 'admin' OR LOWER(role::text) = 'administrator'");
+                    $adminIds = $adminStmt ? $adminStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+
+                    if (!empty($adminIds)) {
+                        $title = 'New Renewal Request';
+                        $message = $userName . ' submitted a ' . $documentType . ' for ' . $bizName . ($trackingNo ? ' (' . $trackingNo . ')' : '') . '.';
+                        $link = 'renewals_approval.php';
+
+                        foreach ($adminIds as $adminId) {
+                            $columns = ['user_id', 'title', 'message'];
+                            $placeholders = [':uid', ':title', ':msg'];
+                            $params = [':uid' => (int)$adminId, ':title' => $title, ':msg' => $message];
+                            if ($linkColumn) { $columns[] = $linkColumn; $placeholders[] = ':link'; $params[':link'] = $link; }
+                            if ($hasIsRead) { $columns[] = 'is_read'; $placeholders[] = 'FALSE'; }
+                            if (columnExists($conn, 'notifications', 'created_at')) { $columns[] = 'created_at'; $placeholders[] = 'NOW()'; }
+                            $sqlNotif = "INSERT INTO notifications (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                            $conn->prepare($sqlNotif)->execute($params);
+                        }
+                    }
+                }
+            } catch (PDOException $e) { error_log('Renewal admin notification error: ' . $e->getMessage()); }
+
+            $_SESSION['flash_success'] = 'Your renewal request has been successfully submitted for LGU verification!';
+            header("Location: renew_documents.php");
+            exit();
+        } else {
+            $flashError = 'Failed to save to database. Please try again.';
         }
-    } catch (PDOException $e) {
-        $fallbackQuery = "
-            SELECT pr.*, r.business_name, r.rental_name, r.tracking_no, u.fullname as owner_name 
-            FROM permit_renewals pr 
-            JOIN rentals r ON pr.rental_id = r.id 
-            JOIN users u ON pr.user_id = u.id 
-            ORDER BY pr.created_at DESC
-        ";
-        $stmt = $conn->query($fallbackQuery);
-        if ($stmt) {
-            $renewals = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
+    } elseif (empty($flashError)) {
+        $flashError = 'Please fill out all required information.';
     }
 }
 
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+if (isset($_SESSION['flash_success'])) { $flashSuccess = $_SESSION['flash_success']; unset($_SESSION['flash_success']); }
+
+/* Expiry column */
+$hasPermitExpiry = columnExists($conn, 'rentals', 'permit_expiry_date');
+$hasExpiry = columnExists($conn, 'rentals', 'expiry_date');
+
+if ($hasPermitExpiry) {
+    $expirySelectSelect = "r.permit_expiry_date AS permit_expiry_date";
+    $expirySelectJoin = "r.permit_expiry_date AS updated_expiry_date";
+} elseif ($hasExpiry) {
+    $expirySelectSelect = "r.expiry_date AS permit_expiry_date";
+    $expirySelectJoin = "r.expiry_date AS updated_expiry_date";
+} else {
+    $expirySelectSelect = "NULL AS permit_expiry_date";
+    $expirySelectJoin = "NULL AS updated_expiry_date";
+}
+
+/* Rentals */
+$rentals = [];
+try {
+    $rStmt = $conn->prepare("SELECT r.id, r.business_name, r.rental_name, r.tracking_no, {$expirySelectSelect} FROM rentals r WHERE r.user_id = :uid AND (r.is_deleted = '0' OR r.is_deleted = FALSE)");
+    $rStmt->execute([':uid' => $userId]);
+    $rentals = $rStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $rStmt = $conn->prepare("SELECT r.id, r.business_name, r.rental_name, r.tracking_no, {$expirySelectSelect} FROM rentals r WHERE r.user_id = :uid AND r.is_deleted = '0'");
+    $rStmt->execute([':uid' => $userId]);
+    $rentals = $rStmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/* ✅ BAGO: KUNIN ANG MGA EXPIRED AT EXPIRING DOCUMENTS/PARAMETERS PARA SA WARNING BANNER */
+$expiredDocs = [];
+$expiringDocs = [];
+if (tableExists($conn, 'documents')) {
+    try {
+        $expStmt = $conn->prepare("
+            SELECT id, title, permit_expiry_date 
+            FROM documents 
+            WHERE user_id = :uid 
+              AND permit_expiry_date IS NOT NULL 
+              AND permit_expiry_date < CURRENT_DATE
+            ORDER BY permit_expiry_date ASC
+        ");
+        $expStmt->execute([':uid' => $userId]);
+        $expiredDocs = $expStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $expSoonStmt = $conn->prepare("
+            SELECT id, title, permit_expiry_date 
+            FROM documents 
+            WHERE user_id = :uid 
+              AND permit_expiry_date IS NOT NULL 
+              AND permit_expiry_date >= CURRENT_DATE
+              AND permit_expiry_date <= CURRENT_DATE + INTERVAL '30 days'
+            ORDER BY permit_expiry_date ASC
+        ");
+        $expSoonStmt->execute([':uid' => $userId]);
+        $expiringDocs = $expSoonStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) { error_log('Expiry fetch error: ' . $e->getMessage()); }
+}
+
+/* Renewals */
+$renewals = [];
+$renStmt = $conn->prepare("
+    SELECT pr.*, r.business_name, r.rental_name, r.tracking_no, {$expirySelectJoin}
+    FROM permit_renewals pr 
+    JOIN rentals r ON pr.rental_id = r.id 
+    WHERE pr.user_id = :uid 
+    ORDER BY pr.created_at DESC
+");
+if ($renStmt) { $renStmt->execute([':uid' => $userId]); $renewals = $renStmt->fetchAll(PDO::FETCH_ASSOC); }
+
+$hasDocuments = tableExists($conn, 'documents');
+$hasPermitNoCol = $hasDocuments && columnExists($conn, 'documents', 'business_permit_no');
+
+/* Notifications */
+$unreadNotifCount = 0; $notifications = [];
+if (tableExists($conn, 'notifications')) {
+    if (columnExists($conn, 'notifications', 'is_read')) {
+        try {
+            $stmtNotifCount = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE (is_read = FALSE OR is_read = 0) AND user_id = :uid");
+            $stmtNotifCount->execute([':uid' => $userId]);
+            $unreadNotifCount = (int) $stmtNotifCount->fetchColumn();
+        } catch (PDOException $e) { $unreadNotifCount = 0; }
+    }
+    $notifStmt = $conn->prepare("SELECT * FROM notifications WHERE user_id = :uid ORDER BY created_at DESC LIMIT 5");
+    $notifStmt->execute([':uid' => $userId]);
+    $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -635,119 +375,70 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#dc2626">
-    <title>Permit Renewals Approval | RENTRACK LGU</title>
+    <title>Online Renewal &amp; Permits | RENTRACK LGU</title>
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         :root {
-            --bg-primary: #f8fafc;
-            --bg-card: #ffffff;
-            --border-glass: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-
-            --primary-red: #dc2626;
-            --primary-red-dark: #991b1b;
-            --primary-red-light: #fecdd3;
-            --red-soft: #fee2e2;
-
-            --ok: #059669;
-            --ok-bg: #ecfdf5;
-            --ok-bd: #a7f3d0;
-            --warn: #b45309;
-            --warn-bg: #fffbeb;
-            --warn-bd: #fde68a;
-            --danger: #b91c1c;
-            --danger-bg: #fef2f2;
-            --danger-bd: #fecaca;
-            --info: #1d4ed8;
-            --info-bg: #eff6ff;
-            --info-bd: #dbeafe;
-            --purple: #6d28d9;
-            --purple-bg: #f5f3ff;
-            --purple-bd: #ddd6fe;
-
-            --r-xs: 6px;
-            --r-sm: 8px;
-            --r-md: 10px;
-            --r-lg: 12px;
-            --r-xl: 16px;
-            --radius: 20px;
-
-            --sh-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-            --sh-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.03);
-            --sh-md: 0 4px 10px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-            --sh-lg: 0 12px 24px -8px rgba(15, 23, 42, 0.10), 0 4px 8px -4px rgba(15, 23, 42, 0.05);
-
-            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --bg-light: #f8fafc; --bg-card: #ffffff; --card-border: #e2e8f0;
+            --accent-blue: #dc2626; --accent-blue-dark: #991b1b; --accent-blue-light: #f87171;
+            --blue-soft: #fee2e2;
+            --text-primary: #0f172a; --text-secondary: #334155;
+            --text-muted: #64748b; --text-faint: #94a3b8;
+            --ok: #059669; --ok-bg: #d1fae5;
+            --warn: #d97706; --warn-bg: #fef3c7;
+            --danger: #dc2626; --danger-bg: #fee2e2;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --safe-left: env(safe-area-inset-left, 0px);
             --safe-right: env(safe-area-inset-right, 0px);
         }
 
-        @keyframes borderSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spinRing { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         html, body {
-            margin: 0 !important; padding: 0 !important; border: 0 !important;
-            height: 100%;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow-x: hidden;
-            -webkit-text-size-adjust: 100%;
+            margin: 0 !important; padding: 0 !important;
+            height: 100%; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background: var(--bg-light); color: var(--text-primary);
+            overflow-x: hidden; -webkit-text-size-adjust: 100%;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
+        * { scrollbar-width: thin; scrollbar-color: rgba(220, 38, 38, 0.4) transparent; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        body.drawer-open { overflow: hidden !important; touch-action: none; }
+        body.drawer-open { overflow: hidden !important; }
+        body.drawer-open #aiAssistantWrapper { display: none !important; }
 
-        .page-container {
+        .main-wrapper {
             display: flex; flex-direction: column;
             min-height: 100vh; min-height: 100dvh;
-            width: 100%;
-            margin: 0 !important; padding: 0 !important;
-            padding-left: var(--safe-left);
-            padding-right: var(--safe-right);
+            background: var(--bg-light);
+            padding-left: var(--safe-left); padding-right: var(--safe-right);
         }
 
         /* OFFICIAL HEADER */
         .official-header {
-            width: 100%;
-            display: flex; align-items: center; justify-content: space-between;
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
             background: linear-gradient(90deg, #991b1b, #dc2626 55%, #991b1b);
             border-bottom: 2px solid #7f1d1d;
-            padding: 6px 20px;
-            padding-top: calc(6px + var(--safe-top));
-            gap: 20px;
-            position: relative; z-index: 110;
-            margin: 0 !important;
+            padding: 6px 20px; padding-top: calc(6px + var(--safe-top));
+            gap: 20px; position: relative; z-index: 110;
             box-shadow: 0 2px 8px -2px rgba(220, 38, 38, 0.45);
         }
-        .official-header-left, .official-header-right-group {
-            display: flex; align-items: center; gap: 12px;
-            color: #fecdd3; font-size: 11px; font-weight: 600;
-        }
+        .official-header-left, .official-header-right-group { display: flex; align-items: center; gap: 12px; color: #fecdd3; font-size: 11px; font-weight: 600; }
         .official-header-badge {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
             padding: 2px 10px; border-radius: 20px;
-            display: flex; align-items: center; gap: 6px;
-            color: #ffffff;
+            display: flex; align-items: center; gap: 6px; color: #ffffff;
         }
         .oh-title { display: flex; align-items: center; gap: 8px; }
         .oh-sub { font-weight: 400; opacity: 0.9; }
@@ -757,7 +448,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             .official-header {
                 display: grid; grid-template-columns: minmax(0, 1fr) auto;
                 grid-template-areas: "title badge" "sub sub";
-                gap: 3px 8px; padding: 6px 12px; text-align: left; align-items: center;
+                gap: 3px 8px; padding: 6px 12px; align-items: center;
             }
             .official-header-left, .official-header-right-group { display: contents; }
             .oh-title { grid-area: title; min-width: 0; gap: 6px; font-size: 10px; white-space: nowrap; }
@@ -766,48 +457,22 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             .oh-sep, .oh-city, .oh-portal { display: none; }
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
-        @media (max-width: 380px) {
-            .official-header { padding: 5px 8px; padding-top: calc(5px + var(--safe-top)); }
-            .oh-title { font-size: 8.5px; gap: 4px; }
-            .official-header-badge { font-size: 8px; padding: 2px 6px; }
-            .oh-sub { font-size: 8px; }
-        }
 
-        .main-wrapper {
-            flex: 1;
-            display: flex; flex-direction: column;
-            min-height: 100vh; min-height: 100dvh;
-            margin: 0 !important; padding: 0 !important;
-            background: #f8fafc;
-        }
-
-        .sticky-header {
-            position: sticky; top: 0;
-            z-index: 2000;
-            background: #ffffff;
-        }
-
+        /* STICKY HEADER */
+        .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 18px;
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
-            margin: 0 !important;
-            gap: 14px;
-            flex-wrap: nowrap;
-            min-height: 58px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 18px; background: #ffffff;
+            border-bottom: 1px solid var(--card-border);
+            gap: 14px; flex-wrap: nowrap; min-height: 62px;
         }
-
         .navbar-left { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-
         .nav-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .brand-logo { position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .brand-logo-ring {
             position: absolute; inset: -2px; border-radius: 50%;
             border: 2px dashed rgba(220, 38, 38, 0.55);
-            animation: borderSpin 4s linear infinite;
+            animation: spinRing 4s linear infinite;
         }
         .brand-logo-circle {
             width: 36px; height: 36px; border-radius: 50%;
@@ -816,148 +481,95 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             color: #fff; font-weight: 800; font-size: 13px; z-index: 2;
             box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
         }
-        .brand-text h2 { font-size: 14px; font-weight: 800; color: var(--primary-red); line-height: 1.1; margin: 0; }
+        .brand-text h2 { font-size: 14px; font-weight: 800; color: var(--accent-blue); line-height: 1.1; margin: 0; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.3px; }
         .brand-text span { font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1.3px; }
 
         .menu-toggle {
-            display: none;
-            width: 42px; height: 42px; border-radius: 10px;
+            display: none; width: 42px; height: 42px; border-radius: 10px;
             align-items: center; justify-content: center;
-            background: #f8fafc; border: 1px solid #e2e8f0;
-            color: var(--primary-red); cursor: pointer;
-            font-size: 16px; flex-shrink: 0;
+            background: #f8fafc; border: 1px solid var(--card-border);
+            color: var(--accent-blue); cursor: pointer; font-size: 16px; flex-shrink: 0;
         }
-        .menu-toggle:active { background: var(--primary-red); color: #fff; border-color: var(--primary-red); }
 
+        /* NAV */
         .main-nav-bar {
             display: flex; align-items: center;
             background: transparent; border: none; padding: 0;
             position: relative; flex-shrink: 0; z-index: 45;
         }
-
-        .nav-menu {
-            list-style: none; margin: 0; padding: 0;
-            display: flex; align-items: center;
-            gap: 2px; flex-wrap: nowrap;
-        }
-
+        .nav-menu { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
         .nav-item { position: relative; }
-
         .nav-link {
             display: flex; align-items: center; gap: 6px;
-            padding: 10px 10px;
-            color: #334155; text-decoration: none;
-            font-size: 12.5px; font-weight: 600;
-            border-radius: 8px;
-            transition: all 0.15s ease;
-            cursor: pointer; white-space: nowrap;
-            background: transparent; border: none;
-            font-family: inherit;
+            padding: 10px 12px; color: #334155; text-decoration: none;
+            font-size: 12.5px; font-weight: 600; border-radius: 8px;
+            transition: all 0.15s ease; cursor: pointer;
+            white-space: nowrap; background: transparent;
+            border: none; font-family: inherit;
         }
-
-        .nav-link i.nav-ico { color: var(--primary-red); font-size: 12px; width: 14px; text-align: center; }
+        .nav-link i.nav-ico { color: var(--accent-blue); font-size: 12px; width: 14px; text-align: center; }
         .nav-link .chevron { font-size: 8px; margin-left: 1px; transition: transform 0.2s ease; opacity: 0.7; }
-        .nav-link:hover { color: var(--primary-red); background: #fff1f2; }
-        .nav-link.active { color: var(--primary-red); background: #fff1f2; font-weight: 700; }
-        .nav-item.open > .nav-link { color: var(--primary-red); background: #fff1f2; }
+        .nav-link:hover { color: var(--accent-blue); background: var(--blue-soft); }
+        .nav-link.active { color: var(--accent-blue); background: var(--blue-soft); font-weight: 700; }
+        .nav-item.open > .nav-link { color: var(--accent-blue); background: var(--blue-soft); }
         .nav-item.open > .nav-link .chevron { transform: rotate(180deg); }
-
-        .nav-link .menu-badge {
-            background: #fbbf24; color: #7c2d12; font-size: 10px; font-weight: 700;
-            padding: 1px 6px; border-radius: 999px;
-            box-shadow: 0 0 8px rgba(251, 191, 36, 0.55);
-            animation: pulseBadge 2s ease-in-out infinite;
-        }
-        @keyframes pulseBadge {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
 
         .nav-dropdown {
             position: absolute; top: calc(100% + 6px); left: 50%;
             transform: translateX(-50%) translateY(8px);
-            min-width: 250px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.10);
-            padding: 8px;
-            opacity: 0; visibility: hidden;
+            min-width: 250px; background: #ffffff;
+            border: 1px solid var(--card-border); border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(220, 38, 38, 0.15);
+            padding: 8px; opacity: 0; visibility: hidden;
             transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
             z-index: 200;
         }
-        .nav-item.open .nav-dropdown {
-            opacity: 1; visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-        .nav-item.align-right .nav-dropdown {
-            left: auto; right: 0;
-            transform: translateX(0) translateY(8px);
-        }
-        .nav-item.align-right.open .nav-dropdown {
-            transform: translateX(0) translateY(0);
-        }
-
+        .nav-item.open .nav-dropdown { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .nav-item.align-right .nav-dropdown { left: auto; right: 0; transform: translateX(0) translateY(8px); }
+        .nav-item.align-right.open .nav-dropdown { transform: translateX(0) translateY(0); }
         .nav-dropdown a {
             display: flex; align-items: center; gap: 12px;
             padding: 10px 12px; border-radius: 8px;
-            color: #334155; text-decoration: none;
-            font-size: 13px; font-weight: 500;
-            transition: all 0.15s ease;
+            color: #334155; text-decoration: none; font-size: 13px; font-weight: 500;
         }
-        .nav-dropdown a:hover { background: #fff1f2; color: var(--primary-red); }
-        .nav-dropdown a i { width: 16px; color: var(--primary-red); font-size: 14px; text-align: center; flex-shrink: 0; }
-        .nav-dropdown a .menu-badge {
-            margin-left: auto; background: #fbbf24; color: #7c2d12;
-            font-size: 10px; font-weight: 700;
-            padding: 1px 8px; border-radius: 999px;
-        }
+        .nav-dropdown a:hover { background: var(--blue-soft); color: var(--accent-blue); }
+        .nav-dropdown a i { width: 16px; color: var(--accent-blue); font-size: 14px; text-align: center; flex-shrink: 0; }
 
         .mobile-drawer-header { display: none; }
 
+        /* SEARCH */
         .search-wrapper {
             flex: 1 1 auto; display: flex; justify-content: center;
-            min-width: 140px; max-width: 380px;
-            padding: 0 8px; margin: 0 auto;
+            min-width: 140px; max-width: 380px; padding: 0 8px; margin: 0 auto;
         }
-        .search-container { position: relative; width: 100%; }
-        .search-container i {
-            position: absolute; left: 13px; top: 50%;
-            transform: translateY(-50%);
-            color: var(--primary-red); z-index: 2; font-size: 13px;
-        }
+        .search-container { position: relative; width: 100%; cursor: pointer; }
+        .search-container i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--accent-blue); z-index: 2; font-size: 13px; }
         .search-container input {
             width: 100%; padding: 8px 14px 8px 38px;
-            border-radius: 999px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            color: #0f172a; font-size: 13px; outline: none;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            border-radius: 999px; border: 1px solid var(--card-border);
+            background: #f8fafc; color: #0f172a; font-size: 13px; outline: none; cursor: pointer;
         }
-        .search-container input::placeholder { color: #94a3b8; }
-        .search-container:hover input { border-color: var(--primary-red); background: var(--red-soft); }
 
+        /* RIGHT */
         .navbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .nav-clock {
             display: flex; flex-direction: column; align-items: flex-end;
             padding: 3px 14px; border-radius: 10px;
-            background: var(--red-soft);
-            border: 1px solid var(--primary-red-light);
+            background: var(--blue-soft); border: 1px solid var(--card-border);
         }
-        .nav-clock .time { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--primary-red); }
-        .nav-clock .date { font-size: 10px; color: #64748b; }
+        .nav-clock .time { font-family: 'Space Grotesk', monospace; font-size: 13px; font-weight: 700; color: var(--accent-blue); }
+        .nav-clock .date { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; }
 
         .nav-icon {
             width: 38px; height: 38px; border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            background: #ffffff; border: 1px solid #e2e8f0;
-            color: var(--primary-red); cursor: pointer; position: relative;
-            flex-shrink: 0;
+            background: #ffffff; border: 1px solid var(--card-border);
+            color: var(--accent-blue); cursor: pointer;
+            position: relative; flex-shrink: 0; text-decoration: none;
         }
-        .nav-icon:active { background: #f8fafc; }
         .nav-icon .badge {
             position: absolute; top: -4px; right: -4px;
-            background: #ef4444; color: #fff;
+            background: var(--accent-blue); color: #fff;
             font-size: 9px; font-weight: 700;
             min-width: 18px; height: 18px; padding: 0 4px;
             border-radius: 9px;
@@ -970,297 +582,203 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             display: flex; align-items: center; gap: 10px;
             padding: 3px 12px 3px 3px;
             border-radius: 12px; background: #ffffff;
-            border: 1px solid #e2e8f0; cursor: pointer;
+            border: 1px solid var(--card-border); cursor: pointer;
         }
-        .profile-btn:hover { background: #f8fafc; }
         .profile-btn .avatar {
             width: 32px; height: 32px; border-radius: 50%;
-            background: var(--primary-red);
+            background: var(--accent-blue);
             display: flex; align-items: center; justify-content: center;
             color: #ffffff; font-weight: 800; font-size: 13px;
-            overflow: hidden;
         }
-        .profile-btn .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .profile-btn .info .name { font-size: 12px; font-weight: 600; color: #0f172a; }
-        .profile-btn .info .role { font-size: 9px; color: var(--primary-red); font-weight: 700; text-transform: uppercase; }
+        .profile-btn .info .role { font-size: 9px; color: var(--accent-blue); font-weight: 700; text-transform: uppercase; }
 
         .profile-dropdown, .notification-dropdown {
             position: absolute; top: calc(100% + 12px); right: 0;
-            width: 240px;
-            background: #ffffff; border: 1px solid #e2e8f0;
+            background: #ffffff; border: 1px solid var(--card-border);
             border-radius: 14px; padding: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            box-shadow: 0 16px 36px rgba(220, 38, 38, 0.15);
             opacity: 0; visibility: hidden;
             transform: translateY(-10px) scale(0.95);
             transition: all 0.25s ease; z-index: 60;
         }
-        .notification-dropdown { width: 360px; padding: 0; }
-        .profile-dropdown.show, .notification-dropdown.show {
-            opacity: 1; visibility: visible;
-            transform: translateY(0) scale(1);
-        }
+        .profile-dropdown { width: 240px; }
+        .notification-dropdown { width: 360px; max-width: calc(100vw - 24px); padding: 0; }
+        .profile-dropdown.show, .notification-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
         .profile-dropdown .dropdown-item {
             display: flex; align-items: center; gap: 12px;
             padding: 10px 14px; border-radius: 10px;
             color: #334155; text-decoration: none; font-size: 13px;
         }
-        .profile-dropdown .dropdown-item:hover { background: var(--red-soft); color: var(--primary-red); }
-        .profile-dropdown .dropdown-item.danger { color: #dc2626; }
+        .profile-dropdown .dropdown-item:hover { background: var(--blue-soft); color: var(--accent-blue); }
+        .profile-dropdown .dropdown-item.danger { color: var(--danger); }
+        .profile-dropdown .dropdown-item.danger:hover { background: var(--danger-bg); }
 
-        .notification-title {
-            padding: 14px 20px; font-weight: 600; font-size: 14px;
-            border-bottom: 1px solid #f1f5f9; color: #0f172a;
-        }
-        .notification-item { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; }
-        .notification-item strong { display: block; font-size: 13px; margin-bottom: 2px; color: var(--primary-red); }
-        .notification-item p { font-size: 12px; color: #475569; margin: 0; }
-        .notification-item small { display: block; font-size: 10px; color: #94a3b8; margin-top: 4px; }
+        .notification-title { padding: 14px 20px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--blue-soft); color: #0f172a; }
 
-        /* ============================================
-           CONTENT
-        ============================================ */
-        .content {
-            flex: 1; padding: 24px 28px 20px;
-            padding-bottom: calc(20px + var(--safe-bottom));
-            overflow-y: auto; background: #f8fafc;
-            -webkit-overflow-scrolling: touch;
-        }
+        /* CONTENT */
+        .content { flex: 1; padding: 22px 24px 40px; padding-bottom: calc(40px + var(--safe-bottom)); background: var(--bg-light); }
 
-        .breadcrumb {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 12px; color: var(--text-muted);
-            margin-bottom: 14px; flex-wrap: wrap;
+        .hero-card {
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            padding: 22px 26px; border-radius: 18px; color: #ffffff;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            box-shadow: 0 8px 22px rgba(220, 38, 38, 0.2); margin-bottom: 18px;
+            flex-wrap: wrap;
         }
-        .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
-        .breadcrumb a:hover { color: var(--primary-red); }
-        .breadcrumb strong { color: var(--text-primary); font-weight: 600; }
-        .breadcrumb .sep { color: var(--text-muted); font-size: 10px; }
+        .hero-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: #ffffff; margin: 0; }
+        .hero-card p { color: #fee2e2; font-size: 13.5px; margin-top: 4px; margin-bottom: 0; }
 
-        .page-header {
-            position: relative; overflow: hidden;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: var(--radius);
-            padding: 20px 22px;
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 12px;
-            margin-bottom: 16px;
-            box-shadow: var(--sh-sm);
+        /* ✅ BAGO: STYLES PARA SA WARNING BANNERS */
+        .alert-banner {
+            padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 14px; border: 1px solid transparent;
         }
-        .page-header::before {
-            content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
-            background: linear-gradient(180deg, #ef4444, #b91c1c);
-        }
-        .page-header::after {
-            content: ''; position: absolute; right: -50px; top: -50px;
-            width: 180px; height: 180px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(220, 38, 38, 0.05), transparent 70%);
-            pointer-events: none;
-        }
-        .page-header > * { position: relative; z-index: 1; }
-        .page-header h1 {
-            color: var(--text-primary);
-            font-size: 18px; font-weight: 700;
-            letter-spacing: -0.01em; line-height: 1.3;
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 3px;
-        }
-        .page-header h1 i { color: var(--primary-red); font-size: 16px; }
-        .page-header p { color: var(--text-muted); font-size: 13px; }
-        @media (min-width: 768px) {
-            .page-header { padding: 22px 26px; margin-bottom: 20px; }
-            .page-header h1 { font-size: 22px; }
-            .page-header p { font-size: 14px; }
-        }
+        .alert-banner.banner-danger { background-color: #fef2f2; border-color: #fecaca; color: #991b1b; border-left: 5px solid #dc2626; }
+        .alert-banner.banner-warning { background-color: #fffbeb; border-color: #fde68a; color: #92400e; border-left: 5px solid #d97706; }
+        .alert-banner i { font-size: 24px; margin-top: 2px; flex-shrink: 0; }
+        .alert-banner h4 { margin: 0 0 4px 0; font-size: 15px; font-weight: 800; }
+        .alert-banner p { margin: 0; font-size: 13px; line-height: 1.5; opacity: 0.9; }
+        .alert-banner ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 12.5px; }
+        .alert-banner ul li { margin-bottom: 4px; }
 
-        /* STATS STRIP */
-        .stats-strip { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
-        @media(min-width: 576px) { .stats-strip { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
-
-        .stat-chip {
-            position: relative;
-            display: flex; align-items: center; gap: 14px;
-            border-radius: 18px; padding: 18px 20px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid #e2e8f0;
-        }
-        .stat-chip:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06); }
-        .stat-chip .stat-icon {
-            width: 46px; height: 46px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; flex-shrink: 0; color: #ffffff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .stat-chip .stat-num { font-size: 24px; font-weight: 800; color: #ffffff; line-height: 1.1; }
-        .stat-chip .stat-lbl { font-size: 11px; color: rgba(255, 255, 255, 0.85); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 3px; font-weight: 700; }
-
-        .stat-chip.stat-red { background: linear-gradient(135deg, #dc2626, #991b1b); border-color: #dc2626; }
-        .stat-chip.stat-red .stat-icon { background: rgba(255, 255, 255, 0.2); }
-        .stat-chip.stat-blue { background: linear-gradient(135deg, #0284c7, #0369a1); border-color: #0284c7; }
-        .stat-chip.stat-blue .stat-icon { background: rgba(255, 255, 255, 0.2); }
-        .stat-chip.stat-green { background: linear-gradient(135deg, #059669, #065f46); border-color: #059669; }
-        .stat-chip.stat-green .stat-icon { background: rgba(255, 255, 255, 0.2); }
-        .stat-chip.stat-amber { background: linear-gradient(135deg, #f59e0b, #b45309); border-color: #f59e0b; }
-        .stat-chip.stat-amber .stat-icon { background: rgba(255, 255, 255, 0.2); }
-
-        /* PANEL */
+        /* PANELS */
         .panel {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: var(--radius);
-            box-shadow: var(--sh-sm);
-            overflow: hidden;
+            background: var(--bg-card); border: 1px solid var(--card-border);
+            border-radius: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.04);
+            overflow: hidden; margin-bottom: 20px;
         }
-        .panel-head {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 16px 22px;
-            border-bottom: 1px solid #e2e8f0;
-            gap: 12px; flex-wrap: wrap;
+        .panel-header {
+            padding: 14px 20px; background: #ffffff; border-bottom: 1px solid var(--card-border);
+            font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 800; color: #0f172a;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            flex-wrap: wrap;
         }
-        .panel-title {
-            font-size: 14.5px; font-weight: 700;
-            color: var(--text-primary);
-            display: flex; align-items: center; gap: 9px;
+        .panel-header i { color: var(--accent-blue); }
+        .panel-body { padding: 20px; }
+
+        /* FORM */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+        .form-control, .form-select {
+            width: 100%; border: 1px solid var(--card-border); border-radius: 10px;
+            padding: 9px 14px; font-size: 13px; outline: none; background: #f8fafc;
+            font-family: inherit; transition: var(--transition);
         }
-        .panel-title i { color: var(--primary-red); font-size: 14px; }
-        .panel-meta { font-size: 12px; color: var(--text-muted); }
-        .panel-meta strong { color: var(--text-primary); font-weight: 700; }
+        .form-control:focus, .form-select:focus { border-color: var(--accent-blue); background: #fff; box-shadow: 0 0 10px rgba(220, 38, 38, 0.1); }
+
+        .btn-primary-custom {
+            background: var(--accent-blue); color: #fff; border: none; padding: 10px 22px; border-radius: 10px;
+            font-weight: 700; font-size: 13px; cursor: pointer; transition: var(--transition);
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary-custom:hover { background: var(--accent-blue-dark); color: #fff; }
 
         /* TABLE */
-        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .table-wrap::-webkit-scrollbar { height: 6px; }
-        .table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-responsive { overflow-x: auto; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 13px; }
+        .table th { background: #f8fafc; color: var(--accent-blue-dark); padding: 12px 16px; font-weight: 800; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid var(--card-border); text-align: left; white-space: nowrap; }
+        .table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+        .table tr:hover { background: #fef2f2; }
 
-        .table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; margin-bottom: 0; }
-        .table thead th {
-            text-align: left;
-            padding: 12px 14px;
-            font-size: 10.5px; font-weight: 700;
-            letter-spacing: 0.06em; text-transform: uppercase;
-            color: var(--text-muted);
-            background: #f1f5f9;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-        }
-        .table tbody td {
-            padding: 16px 14px;
-            border-bottom: 1px solid #f1f5f9;
-            color: var(--text-secondary);
-            vertical-align: middle;
-            font-weight: 500;
-        }
-        .table tbody tr { transition: background 0.15s; }
-        .table tbody tr:hover { background: #fff1f2; }
-        .table tbody tr:last-child td { border-bottom: none; }
+        .badge-custom { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef9c3; color: #854d0e; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; }
 
-        .badge {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 12px; border-radius: 40px;
-            font-size: 10px; font-weight: 700;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-        .badge-warning { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-        .badge-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .badge-info { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
-        .badge-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
+        .empty-state i { font-size: 32px; opacity: 0.5; display: block; margin-bottom: 8px; color: var(--accent-blue); }
+        .empty-state h3 { font-size: 16px; color: #0f172a; font-weight: 700; margin: 0; }
 
-        .btn-action {
-            padding: 6px 14px;
-            border-radius: 8px; font-size: 12px; font-weight: 600;
-            border: none; cursor: pointer;
-            transition: var(--transition);
-            display: inline-flex; align-items: center; gap: 6px;
-            text-decoration: none;
-            font-family: inherit;
-        }
-        .btn-approve { background: #fee2e2; color: #dc2626; border: 1px solid #fecdd3; }
-        .btn-approve:hover:not(:disabled) { background: var(--primary-red); color: #fff; }
-        .btn-approve:disabled { opacity: 0.5; cursor: not-allowed; background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
-        .btn-reject { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-        .btn-reject:hover { background: #ef4444; color: #fff; }
-        .btn-view { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-        .btn-view:hover { background: #0284c7; color: #fff; }
+        /* MODAL */
+        .modal-content { border-radius: 18px; border: 1px solid var(--card-border); }
 
         .zoom-image-container {
             overflow: auto; max-height: 70vh; display: flex; justify-content: center; align-items: center;
-            background: #f8fafc; border-radius: 12px; padding: 10px; position: relative; border: 1px solid #e2e8f0;
+            background: #0f172a; border-radius: 12px; padding: 10px;
         }
         .preview-image-zoomable {
-            max-width: 100%; transition: transform 0.3s ease, cursor 0.2s ease; cursor: zoom-in; object-fit: contain;
+            max-width: 100%; transition: transform 0.3s ease; cursor: zoom-in; object-fit: contain;
         }
         .preview-image-zoomable.is-zoomed { cursor: zoom-out; transform: scale(2); max-width: none; }
 
-        .empty-state { padding: 60px 24px; text-align: center; color: var(--text-muted); }
-        .empty-state i { font-size: 40px; color: var(--text-muted); display: block; margin-bottom: 12px; opacity: 0.6; }
-        .empty-state h4 { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
-        .empty-state p { font-size: 12.5px; }
+        .dashboard-footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap; gap: 10px; }
 
-        .footer {
-            margin-top: 24px; padding-top: 16px;
-            border-top: 1px solid #e2e8f0;
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 12px; color: var(--text-muted);
-            flex-wrap: wrap; gap: 10px;
+        /* SEARCH MODAL */
+        .search-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(153, 27, 27, 0.4); backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); z-index: 9999;
+            display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px;
+            opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .footer .brand { color: var(--primary-red); font-weight: 700; }
+        .search-modal-overlay.active { opacity: 1; visibility: visible; }
+        .search-modal-content {
+            width: 100%; max-width: 650px; background: #ffffff;
+            border: 1px solid var(--card-border); border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(220, 38, 38, 0.2);
+            overflow: hidden; transform: translateY(-20px) scale(0.98); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 85vh; display: flex; flex-direction: column;
+        }
+        .search-modal-overlay.active .search-modal-content { transform: translateY(0) scale(1); }
+        .search-modal-header {
+            display: flex; align-items: center; padding: 14px 18px;
+            border-bottom: 1px solid var(--card-border); background: #f8fafc; flex-shrink: 0;
+        }
+        .search-modal-header i.search-icon-main { font-size: 16px; color: var(--accent-blue); margin-right: 14px; }
+        .search-modal-input { flex: 1; background: transparent; border: none; outline: none; color: #0f172a; font-size: 15px; font-weight: 600; }
+        .search-modal-close {
+            background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b;
+            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .search-modal-close:hover { background: var(--danger-bg); color: var(--danger); border-color: #fca5a5; }
+        .search-modal-body { padding: 16px; max-height: 380px; overflow-y: auto; flex: 1; }
+        .search-shortcut-hint {
+            display: flex; align-items: center; justify-content: space-between; padding: 12px 18px;
+            background: #f8fafc; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+        }
+        .search-shortcut-hint kbd {
+            background: var(--blue-soft); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; color: var(--accent-blue-dark); font-family: inherit; font-weight: 700;
+        }
 
-        .modal-content {
-            border-radius: var(--r-xl) !important;
-            border: 1px solid #e2e8f0 !important;
-            background: #ffffff !important;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        /* AI ASSISTANT */
+        #aiAssistantWrapper {
+            position: fixed; bottom: calc(25px + var(--safe-bottom)); right: calc(25px + var(--safe-right));
+            z-index: 1050; font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        @media (max-width: 576px) {
-            .modal-dialog { margin: 8px; max-width: calc(100% - 16px); }
-            .modal-body { max-height: 70vh; overflow-y: auto; }
+        #aiToggleBtn {
+            width: 55px; height: 55px; border-radius: 50%;
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border: none; color: #fff; font-size: 22px; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+            display: flex; align-items: center; justify-content: center;
         }
-        .modal-header { border-bottom: 1px solid #f1f5f9 !important; padding: 16px 22px; }
-        .modal-footer { border-top: 1px solid #f1f5f9 !important; }
-        .modal-title { font-size: 14.5px !important; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 9px; }
-        .modal-title i { color: var(--primary-red); font-size: 14px; }
-
-        /* ============================================
-           RESPONSIVE
-        ============================================ */
-        @media (max-width: 1400px) {
-            .nav-link { padding: 10px 8px; font-size: 12px; }
-            .nav-link .nav-ico { font-size: 11px; }
+        #aiChatWindow {
+            position: absolute; bottom: 70px; right: 0;
+            width: 350px; height: 480px;
+            background: #ffffff; border: 1px solid var(--card-border);
+            border-radius: 18px; box-shadow: 0 20px 40px rgba(220, 38, 38, 0.2);
+            display: none; flex-direction: column; overflow: hidden;
         }
 
+        /* RESPONSIVE */
+        @media (max-width: 1400px) { .nav-link { padding: 10px 8px; font-size: 12px; } }
+        
         @media (max-width: 1200px) {
-            .top-navbar {
-                padding: 10px 14px;
-                padding-top: calc(10px + var(--safe-top));
-                gap: 10px;
-                flex-wrap: wrap;
-                min-height: 60px;
-            }
+            .top-navbar { padding: 10px 14px; padding-top: calc(10px + var(--safe-top)); gap: 10px; flex-wrap: wrap; min-height: 60px; }
             .nav-clock { display: none; }
             .profile-btn .info { display: none; }
-            .profile-btn { padding: 3px; }
-            .profile-btn .chevron { display: none; }
+            .profile-btn { padding: 3px; gap: 0; }
             .menu-toggle { display: flex; }
-
-            .search-wrapper {
-                order: 5; width: 100%;
-                padding: 0; margin-top: 4px; margin-bottom: 4px;
-                max-width: 100%; flex-basis: 100%;
-            }
-            .search-container { max-width: 100%; }
+            .search-wrapper { order: 5; width: 100%; padding: 0; margin: 4px 0; max-width: 100%; flex-basis: 100%; }
 
             .main-nav-bar {
                 position: fixed; top: 0; left: -100%;
                 width: 85vw; max-width: 320px;
                 height: 100vh; height: 100dvh;
-                flex-direction: column;
-                align-items: stretch; justify-content: flex-start;
-                padding: 0;
-                z-index: 2001;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
+                flex-direction: column; align-items: stretch;
+                justify-content: flex-start; padding: 0; z-index: 2000;
+                overflow-y: auto; -webkit-overflow-scrolling: touch;
                 transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 background: #ffffff;
                 box-shadow: 6px 0 25px rgba(0,0,0,0.18);
@@ -1269,17 +787,14 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
 
             .mobile-drawer-header {
                 display: flex; align-items: center; justify-content: space-between;
-                padding: 16px 18px;
-                padding-top: calc(16px + var(--safe-top));
+                padding: 16px 18px; padding-top: calc(16px + var(--safe-top));
                 background: linear-gradient(90deg, #991b1b, #dc2626 55%, #991b1b);
-                color: #fff;
-                flex-shrink: 0;
-                border-bottom: 2px solid #7f1d1d;
+                color: #fff; flex-shrink: 0; border-bottom: 2px solid #7f1d1d;
             }
             .mobile-drawer-header .drawer-brand { display: flex; align-items: center; gap: 10px; }
             .mobile-drawer-header .drawer-brand-logo {
                 width: 32px; height: 32px; border-radius: 50%;
-                background: #ffffff; color: var(--primary-red);
+                background: #ffffff; color: var(--accent-blue);
                 display: flex; align-items: center; justify-content: center;
                 font-weight: 800; font-size: 12px;
             }
@@ -1287,795 +802,979 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             .mobile-drawer-header .drawer-brand-text span { font-size: 9px; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
             .mobile-drawer-header .drawer-close-btn {
                 width: 34px; height: 34px; border-radius: 8px;
-                background: rgba(255,255,255,0.18);
-                border: 1px solid rgba(255,255,255,0.35);
+                background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
                 color: #fff; cursor: pointer; font-size: 15px;
                 display: flex; align-items: center; justify-content: center;
             }
-            .mobile-drawer-header .drawer-close-btn:active { background: rgba(255,255,255,0.35); }
-
             .main-nav-bar .nav-menu {
                 flex-direction: column; width: 100%;
                 justify-content: flex-start; gap: 4px;
-                padding: 14px;
-                padding-bottom: calc(20px + var(--safe-bottom));
+                padding: 14px; padding-bottom: calc(20px + var(--safe-bottom));
             }
             .nav-item { width: 100%; }
-            .nav-link {
-                padding: 14px 16px; border-radius: 10px;
-                justify-content: flex-start;
-                font-size: 14.5px; min-height: 48px;
-            }
+            .nav-link { padding: 14px 16px; border-radius: 10px; justify-content: flex-start; font-size: 14.5px; min-height: 48px; }
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            .nav-dropdown,
-            .nav-item.open .nav-dropdown,
-            .nav-item.align-right .nav-dropdown,
-            .nav-item.align-right.open .nav-dropdown {
-                position: static; left: auto; right: auto;
-                transform: none; opacity: 1; visibility: visible;
-                box-shadow: none; border: none;
+            .nav-dropdown {
+                position: static !important; left: auto !important; right: auto !important;
+                transform: none !important; opacity: 1 !important; visibility: visible !important;
+                box-shadow: none !important; border: none !important;
                 max-height: 0; overflow: hidden;
                 transition: max-height 0.3s ease, padding 0.2s ease;
                 padding: 0 0 0 16px;
-                background: #f8fafc; margin-top: 4px;
-                border-radius: 10px; min-width: 0;
+                background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0;
+                width: 100% !important;
             }
-            .nav-item.open .nav-dropdown { max-height: 600px; padding: 8px 0 8px 16px; }
-            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; }
+            .nav-item.open > .nav-dropdown,
+            .nav-item.align-right.open > .nav-dropdown {
+                max-height: 1000px !important;
+                padding: 8px 0 8px 16px !important;
+            }
+            .nav-dropdown a { padding: 12px 14px; min-height: 44px; font-size: 13.5px; display: flex; align-items: center; }
 
             .sidebar-overlay {
                 display: none; position: fixed; inset: 0;
                 background: rgba(0,0,0,0.55);
                 z-index: 1999;
-                backdrop-filter: blur(3px);
-                -webkit-backdrop-filter: blur(3px);
+                backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
                 opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none;
             }
-            .sidebar-overlay.active { display: block; opacity: 1; }
+            .sidebar-overlay.active { 
+                display: block; 
+                opacity: 1; 
+                pointer-events: auto; 
+            }
 
-            .notification-dropdown { width: calc(100vw - 24px); max-width: 400px; right: -50px; }
-            .profile-dropdown { width: 220px; }
+            .notification-dropdown {
+                position: fixed;
+                top: 70px;
+                left: 12px;
+                right: 12px;
+                width: auto !important;
+                max-width: none;
+                transform: translateY(-10px) scale(0.98);
+            }
+            .notification-dropdown.show { transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 992px) {
+            .search-modal-overlay { padding-top: 8vh; }
         }
 
         @media (max-width: 768px) {
-            .content {
-                padding: 16px 14px;
-                padding-bottom: calc(24px + var(--safe-bottom));
-            }
-            .page-header {
-                flex-direction: column; align-items: flex-start;
-                gap: 10px; margin-bottom: 16px;
-                padding: 16px !important;
-            }
-            .page-header h1 { font-size: 18px; }
-            .page-header p { font-size: 12.5px; }
+            .content { padding: 16px 14px 24px; padding-bottom: calc(24px + var(--safe-bottom)); }
+            .hero-card { flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px 20px; }
+            .hero-card h2 { font-size: 18px; }
+            .panel-header { padding: 12px 16px; font-size: 14px; }
+            .panel-body { padding: 14px; }
+            .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
 
-            .panel { border-radius: 16px; }
-            .panel-head { padding: 14px 16px; }
-            .panel-title { font-size: 13.5px; }
-
-            .footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
-
-            .modal-dialog { margin: 0; min-height: 100vh; min-height: 100dvh; align-items: stretch; }
-            .modal-content { border-radius: 0 !important; min-height: 100vh; min-height: 100dvh; }
-            .modal-header { padding-top: calc(1rem + var(--safe-top)); }
-            .modal-footer { padding-bottom: calc(1rem + var(--safe-bottom)); }
-
-            /* Mobile card table */
-            .table-wrap { overflow-x: visible; }
-            .table { min-width: 100% !important; }
+            .table-responsive { overflow: visible; }
+            .table { display: block; }
             .table thead { display: none; }
-            .table tbody, .table tr, .table td { display: block; width: 100%; }
+            .table tbody { display: block; padding: 12px; }
             .table tr {
-                background: #ffffff !important;
-                border: 1px solid #e2e8f0 !important;
-                border-left: 3px solid var(--primary-red) !important;
-                border-radius: var(--r-lg);
-                margin: 0 12px 12px;
+                display: block;
+                background: #ffffff;
+                border: 1px solid var(--card-border);
+                border-radius: 14px;
+                margin-bottom: 12px;
                 padding: 14px;
-                box-shadow: var(--sh-xs);
+                box-shadow: 0 2px 8px rgba(220, 38, 38, 0.04);
             }
-            .table tbody tr:hover { background: #ffffff !important; }
+            .table tr:last-child { margin-bottom: 0; }
+            .table tbody tr:hover { background: #ffffff; }
             .table td {
-                display: flex; align-items: center; justify-content: space-between;
-                text-align: right;
-                padding: 8px 0 !important;
-                border-bottom: 1px dashed #eef1f6 !important;
-                white-space: normal;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
                 gap: 12px;
+                padding: 8px 0;
+                border-bottom: 1px dashed #f1f5f9;
+                font-size: 13px;
+                text-align: right;
             }
+            .table td:first-child { padding-top: 0; }
             .table td:last-child {
-                border-bottom: none !important;
-                flex-direction: column; align-items: stretch;
-                padding-top: 14px !important;
-                padding-bottom: 2px !important;
+                border-bottom: none;
+                padding-bottom: 0;
+                margin-top: 8px;
+                padding-top: 12px;
+                border-top: 1px solid #f1f5f9;
+                justify-content: center;
             }
             .table td::before {
                 content: attr(data-label);
-                font-weight: 700; font-size: 10px;
-                color: var(--text-muted);
-                text-transform: uppercase; letter-spacing: 0.05em;
-                text-align: left; flex-shrink: 0;
+                font-weight: 700;
+                font-size: 10.5px;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: #64748b;
+                flex-shrink: 0;
+                text-align: left;
             }
-            .table td:last-child::before { display: none; }
+            .table td > * { text-align: right; }
+            .table td strong { font-size: 13.5px; word-break: break-word; }
+            .table td .btn { width: 100%; padding: 10px 14px; font-size: 13px; min-height: 44px; justify-content: center; }
+            
+            #aiAssistantWrapper {
+                bottom: calc(18px + var(--safe-bottom));
+                right: calc(18px + var(--safe-right));
+            }
+            #aiToggleBtn { width: 52px; height: 52px; font-size: 20px; }
+            #aiChatWindow {
+                width: calc(100vw - 24px) !important;
+                max-width: 420px;
+                height: calc(100vh - 140px) !important;
+                max-height: 560px;
+                bottom: 66px;
+                right: -8px;
+                border-radius: 16px;
+            }
+
+            .modal-dialog { margin: 10px auto; }
+            .modal-xl { max-width: calc(100vw - 20px); }
+            .modal-content { border-radius: 16px; }
+            .zoom-image-container { max-height: 60vh; }
+
+            .search-modal-overlay { padding: 6vh 12px 12px; }
+            .search-modal-content { border-radius: 16px; }
+            .search-modal-header { padding: 14px 16px; }
+            .search-modal-body { padding: 14px; max-height: 55vh; }
+            .search-shortcut-hint { font-size: 10.5px; padding: 10px 14px; }
         }
 
         @media (max-width: 480px) {
-            .official-header { padding: 5px 8px; padding-top: calc(5px + var(--safe-top)); }
-            .top-navbar { padding: 8px 10px; }
             .content { padding: 12px 10px 22px; padding-bottom: calc(22px + var(--safe-bottom)); }
-            .page-header { padding: 14px 16px; border-radius: 12px; }
-            .page-header h1 { font-size: 16px; }
-            .page-header p { font-size: 11.5px; }
-            .footer { font-size: 10.5px; }
+            .profile-dropdown { width: calc(100vw - 24px); max-width: 280px; right: -8px; }
+            #aiChatWindow { height: calc(100vh - 130px) !important; max-height: 500px; }
+
+            .table tbody { padding: 10px; }
+            .table tr { padding: 12px; }
+            .table td { font-size: 12.5px; padding: 7px 0; }
+            .table td::before { font-size: 10px; }
         }
 
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
-            .search-container input { font-size: 16px !important; }
+            .search-container input, .search-modal-input, .form-control, .form-select { font-size: 16px !important; }
+            #aiChatInput { font-size: 16px !important; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .nav-link, .nav-dropdown a, .btn-primary-custom, .profile-dropdown .dropdown-item, .notif-drop-item {
+                -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
+            }
         }
     </style>
 </head>
 <body>
 
     <form id="logoutForm" action="../logout.php" method="POST" style="display:none;"></form>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <div class="page-container">
-        <!-- OFFICIAL HEADER -->
-        <div class="official-header">
-            <div class="official-header-left">
-                <div class="oh-title">
-                    <i class="fa-solid fa-landmark"></i>
-                    <span>REPUBLIC OF THE PHILIPPINES</span>
-                </div>
-                <span class="oh-sep" style="opacity: 0.7;">|</span>
-                <span class="oh-sub">Local Government Unit Property &amp; Rental Compliance Portal</span>
+    <!-- TOP OFFICIAL BAR -->
+    <div class="official-header">
+        <div class="official-header-left">
+            <div class="oh-title">
+                <i class="fa-solid fa-landmark"></i>
+                <span>REPUBLIC OF THE PHILIPPINES</span>
             </div>
-            <div class="official-header-right-group">
-                <div class="official-header-badge">
-                    <i class="fa-solid fa-certificate"></i>
-                    <span>LGU CERTIFIED <span class="oh-portal">PORTAL </span>V2.1</span>
-                </div>
-                <span class="oh-city">City Treasurer &amp; Rentrack Online System</span>
-            </div>
+            <span class="oh-sep" style="opacity: 0.7;">|</span>
+            <span class="oh-sub">Local Government Unit Property &amp; Rental Compliance Portal</span>
         </div>
+        <div class="official-header-right-group">
+            <div class="official-header-badge">
+                <i class="fa-solid fa-certificate"></i>
+                <span>LGU CERTIFIED <span class="oh-portal">PORTAL </span>V2.1</span>
+            </div>
+            <span class="oh-city">City Treasurer &amp; Rentrack Online System</span>
+        </div>
+    </div>
 
-        <div class="main-wrapper">
-            <div class="sticky-header">
-                <header class="top-navbar">
-                    <div class="navbar-left">
-                        <button class="menu-toggle" id="menuToggle" aria-label="Toggle Menu"><i class="fa-solid fa-bars"></i></button>
-                        <div class="nav-brand">
-                            <div class="brand-logo">
-                                <div class="brand-logo-ring"></div>
-                                <div class="brand-logo-circle">RT</div>
-                            </div>
-                            <div class="brand-text">
+    <div class="main-wrapper">
+        <div class="sticky-header">
+            <header class="top-navbar">
+                <div class="navbar-left">
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                    <div class="nav-brand">
+                        <div class="brand-logo">
+                            <div class="brand-logo-ring"></div>
+                            <div class="brand-logo-circle">RT</div>
+                        </div>
+                        <div class="brand-text">
+                            <h2>RENTRACK</h2>
+                            <span>Owner Portal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <nav class="main-nav-bar" id="mainNavBar">
+                    <div class="mobile-drawer-header">
+                        <div class="drawer-brand">
+                            <div class="drawer-brand-logo">RT</div>
+                            <div class="drawer-brand-text">
                                 <h2>RENTRACK</h2>
-                                <span>LGU Staff</span>
+                                <span>Owner Portal</span>
                             </div>
                         </div>
+                        <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
-                    <nav class="main-nav-bar" id="mainNavBar">
-                        <div class="mobile-drawer-header">
-                            <div class="drawer-brand">
-                                <div class="drawer-brand-logo">RT</div>
-                                <div class="drawer-brand-text">
-                                    <h2>RENTRACK</h2>
-                                    <span>LGU Staff</span>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a href="dashboard.php" class="nav-link"><i class="fa-solid fa-gauge-high nav-ico"></i> Dashboard</a>
+                        </li>
+
+                        <li class="nav-item has-dropdown">
+                            <button type="button" class="nav-link" data-dropdown>
+                                <i class="fa-solid fa-building nav-ico"></i> Rentals
+                                <i class="fa-solid fa-chevron-down chevron"></i>
+                            </button>
+                            <div class="nav-dropdown">
+                                <a href="rentals.php"><i class="fa-solid fa-building"></i> My Rentals</a>
+                                <a href="register_rental.php"><i class="fa-solid fa-circle-plus"></i> Register Rental</a>
+                                <a href="rental_requests.php"><i class="fa-solid fa-file-circle-check"></i> Rental Requests</a>
+                                <a href="schedule.php"><i class="fa-solid fa-calendar-days"></i> Rental Schedule</a>
+                            </div>
+                        </li>
+
+                        <li class="nav-item has-dropdown">
+                            <button type="button" class="nav-link" data-dropdown>
+                                <i class="fa-solid fa-clipboard-check nav-ico"></i> Operations
+                                <i class="fa-solid fa-chevron-down chevron"></i>
+                            </button>
+                            <div class="nav-dropdown">
+                                <a href="inspections.php"><i class="fa-solid fa-clipboard-check"></i> Inspections</a>
+                                <a href="inspection_schedule.php"><i class="fa-solid fa-calendar-check"></i> Inspection Schedule</a>
+                                <a href="maintenance.php"><i class="fa-solid fa-screwdriver-wrench"></i> Maintenance</a>
+                            </div>
+                        </li>
+
+                        <li class="nav-item has-dropdown">
+                            <button type="button" class="nav-link active" data-dropdown>
+                                <i class="fa-solid fa-file-lines nav-ico"></i> Documents
+                                <i class="fa-solid fa-chevron-down chevron"></i>
+                            </button>
+                            <div class="nav-dropdown">
+                                <a href="documents.php"><i class="fa-solid fa-file-lines"></i> Documents</a>
+                                <a href="renew_documents.php"><i class="fa-solid fa-file-arrow-up"></i> Online Renewal</a>
+                                <a href="compliance.php"><i class="fa-solid fa-file-shield"></i> Compliance</a>
+                            </div>
+                        </li>
+
+                        <li class="nav-item has-dropdown align-right">
+                            <button type="button" class="nav-link" data-dropdown>
+                                <i class="fa-solid fa-money-check-dollar nav-ico"></i> Financials
+                                <i class="fa-solid fa-chevron-down chevron"></i>
+                            </button>
+                            <div class="nav-dropdown">
+                                <a href="payments.php"><i class="fa-solid fa-cash-register"></i> Payments</a>
+                                <a href="reports.php"><i class="fa-solid fa-chart-simple"></i> Reports</a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div class="search-wrapper">
+                    <div class="search-container" onclick="openSearchModal()">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" placeholder="Search tracking no, business name..." readonly style="cursor: pointer;">
+                    </div>
+                </div>
+
+                <div class="navbar-right">
+                    <div class="nav-clock">
+                        <div class="time" id="liveTime"><?php echo date('h:i:s A'); ?></div>
+                        <div class="date"><?php echo date('M d, Y'); ?></div>
+                    </div>
+
+                    <div class="nav-icon-wrapper" style="position:relative;">
+                        <button class="nav-icon" id="notifBtn" aria-label="Notifications">
+                            <i class="fa-regular fa-bell"></i>
+                            <?php if ($unreadNotifCount > 0): ?>
+                                <span class="badge" id="notifBadgeCount"><?php echo $unreadNotifCount; ?></span>
+                            <?php endif; ?>
+                        </button>
+                        <div id="notifDropdown" class="notification-dropdown">
+                            <div class="notification-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                <span>Notifications</span>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <?php if ($unreadNotifCount > 0): ?>
+                                        <span id="notifHeaderCount" style="font-size:10px; background:var(--blue-soft); color:var(--accent-blue-dark); padding:2px 8px; border-radius:10px;"><?php echo $unreadNotifCount; ?> New</span>
+                                    <?php endif; ?>
+                                    <button type="button" id="notifClearBtn" style="background:transparent; border:none; color:var(--accent-blue); font-size:11px; font-weight:700; cursor:pointer; padding:6px 8px;">Clear</button>
                                 </div>
                             </div>
-                            <button type="button" class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-
-                        <ul class="nav-menu">
-                            <li class="nav-item">
-                                <a href="dashboard.php" class="nav-link">
-                                    <i class="fa-solid fa-gauge-high nav-ico"></i> Dashboard
-                                </a>
-                            </li>
-
-                            <li class="nav-item has-dropdown">
-                                <button type="button" class="nav-link active" data-dropdown>
-                                    <i class="fa-solid fa-folder-open nav-ico"></i> Rental Management
-                                    <i class="fa-solid fa-chevron-down chevron"></i>
-                                </button>
-                                <div class="nav-dropdown">
-                                    <a href="rentals.php"><i class="fa-solid fa-folder-open"></i> Rental Applications</a>
-                                    <a href="add_rental.php"><i class="fa-solid fa-plus-circle"></i> Register Rental</a>
-                                    <a href="documents.php"><i class="fa-solid fa-file-lines"></i> Documents</a>
-                                    <a href="renewals_approval.php"><i class="fa-solid fa-file-circle-exclamation"></i> Permit Renewals</a>
-                                    <a href="reports.php"><i class="fa-solid fa-file-invoice"></i> Reports &amp; Analytics</a>
-                                </div>
-                            </li>
-
-                            <li class="nav-item has-dropdown">
-                                <button type="button" class="nav-link" data-dropdown>
-                                    <i class="fa-solid fa-clipboard-check nav-ico"></i> Inspections
-                                    <i class="fa-solid fa-chevron-down chevron"></i>
-                                </button>
-                                <div class="nav-dropdown">
-                                    <a href="inspections.php"><i class="fa-solid fa-clipboard-check"></i> My Inspections</a>
-                                    <a href="inspection_schedule.php"><i class="fa-solid fa-calendar-days"></i> Inspection Schedule</a>
-                                </div>
-                            </li>
-
-                        
-                            <li class="nav-item has-dropdown">
-                                <button type="button" class="nav-link" data-dropdown>
-                                    <i class="fa-solid fa-money-check-dollar nav-ico"></i> Financials
-                                    <i class="fa-solid fa-chevron-down chevron"></i>
-                                </button>
-                                <div class="nav-dropdown">
-                                    <a href="payments.php"><i class="fa-solid fa-money-check-dollar"></i> Payments</a>
-                                </div>
-                            </li>
-                        </ul>
-                    </nav>
-
-                    <div class="search-wrapper">
-                        <div class="search-container" data-bs-toggle="modal" data-bs-target="#searchModal" style="cursor: pointer;">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="globalSearchInput" placeholder="Search tracking no, business, owner..." readonly style="cursor: pointer;">
-                        </div>
-                    </div>
-
-                    <div class="navbar-right">
-                        <div class="nav-clock">
-                            <div class="time" id="clockTime">12:00 PM</div>
-                            <div class="date"><?php echo date("M d, Y"); ?></div>
-                        </div>
-
-                        <div class="nav-icon-wrapper" style="position:relative;">
-                            <button class="nav-icon" id="notifBtn" aria-label="Notifications">
-                                <i class="fa-regular fa-bell"></i>
-                                <?php if ($notificationCount > 0): ?>
-                                    <span class="badge"><?php echo $notificationCount; ?></span>
-                                <?php endif; ?>
-                            </button>
-                            <div id="notifDropdown" class="notification-dropdown">
-                                <div class="notification-title">Recent Notifications</div>
+                            <div style="max-height:280px; overflow-y:auto;" id="notifListBody">
                                 <?php if (!empty($notifications)): ?>
-                                    <?php foreach ($notifications as $n): ?>
-                                        <div class="notification-item">
-                                            <strong><?php echo htmlspecialchars($n['title'] ?? 'Notification'); ?></strong>
-                                            <p><?php echo htmlspecialchars($n['message'] ?? ''); ?></p>
-                                            <small><?php echo date("M d, Y h:i A", strtotime($n['created_at'] ?? 'now')); ?></small>
-                                        </div>
+                                    <?php foreach ($notifications as $notification): ?>
+                                        <?php
+                                            $notifLink = 'renew_documents.php';
+                                            if (!empty($notification['link'])) $notifLink = $notification['link'];
+                                            elseif (!empty($notification['target_url'])) $notifLink = $notification['target_url'];
+                                            else {
+                                                $titleLower = strtolower($notification['title'] ?? '');
+                                                $msgLower = strtolower($notification['message'] ?? '');
+                                                if (strpos($titleLower, 'rental') !== false || strpos($msgLower, 'rental') !== false) $notifLink = 'rentals.php';
+                                                elseif (strpos($titleLower, 'inspection') !== false || strpos($msgLower, 'inspection') !== false) $notifLink = 'inspections.php';
+                                                elseif (strpos($titleLower, 'payment') !== false || strpos($msgLower, 'payment') !== false) $notifLink = 'payments.php';
+                                                elseif (strpos($titleLower, 'renewal') !== false || strpos($msgLower, 'renewal') !== false) $notifLink = 'renew_documents.php';
+                                                elseif (strpos($titleLower, 'compliance') !== false || strpos($msgLower, 'permit') !== false) $notifLink = 'compliance.php';
+                                            }
+                                            $isUnread = (!isset($notification['is_read']) || $notification['is_read'] === false || $notification['is_read'] === '0' || $notification['is_read'] === 0);
+                                        ?>
+                                        <a href="javascript:void(0)" class="notif-drop-item" onclick="markNotificationReadAndRedirect(<?php echo (int)$notification['id']; ?>, '<?php echo htmlspecialchars($notifLink); ?>', this)" style="display:block; padding:12px 16px; border-bottom:1px solid #f1f5f9; text-decoration:none; color:var(--text-secondary); background:<?php echo $isUnread ? '#fef2f2' : '#fff'; ?>;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                                <strong style="font-size:12px; display:block; color:#0f172a;"><?php echo displayField($notification, ['title']); ?></strong>
+                                                <?php if ($isUnread): ?><span class="unread-dot" style="width:8px; height:8px; background:var(--accent-blue); border-radius:50%; display:inline-block; flex-shrink:0;"></span><?php endif; ?>
+                                            </div>
+                                            <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;"><?php echo displayField($notification, ['message','description']); ?></span>
+                                            <span style="font-size:9.5px; color:#94a3b8; display:block; margin-top:4px;"><?php echo !empty($notification['created_at']) ? date('M d, Y h:i A', strtotime($notification['created_at'])) : ''; ?></span>
+                                        </a>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <div class="notification-item" style="text-align:center;color:#64748b;padding:20px;">No notifications</div>
+                                    <div style="padding:20px; text-align:center; color:#94a3b8; font-size:12px;">No notifications found</div>
                                 <?php endif; ?>
                             </div>
-                        </div>
-
-                        <div class="profile-wrapper">
-                            <div class="profile-btn" id="profileToggle">
-                                <div class="avatar">
-                                    <?php if (!empty($profilePicture) && file_exists(__DIR__ . '/' . $profilePicture)): ?>
-                                        <img src="<?php echo htmlspecialchars($profilePicture); ?>" alt="Avatar">
-                                    <?php else: ?>
-                                        <?php echo $staffInitial; ?>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="info">
-                                    <div class="name"><?php echo htmlspecialchars($staffName); ?></div>
-                                    <div class="role"><?php echo htmlspecialchars($staffRole); ?></div>
-                                </div>
-                                <i class="fa-solid fa-chevron-down chevron" style="color: #64748b;"></i>
-                            </div>
-
-                            <div class="profile-dropdown" id="profileDropdown">
-                                <a href="profile.php" class="dropdown-item"><i class="fa-solid fa-user"></i> My Profile</a>
-                                <a href="settings.php" class="dropdown-item"><i class="fa-solid fa-gear"></i> Settings</a>
-                                <div class="dropdown-divider"></div>
-                                <a href="#" class="dropdown-item danger" id="profileLogoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+                            <div style="padding:8px; text-align:center; border-top:1px solid var(--card-border); background:#f8fafc;">
+                                <a href="notifications.php" style="font-size:11px; font-weight:700; color:var(--accent-blue); text-decoration:none;">View All Notifications</a>
                             </div>
                         </div>
                     </div>
-                </header>
+
+                    <div class="profile-wrapper">
+                        <div class="profile-btn" id="profileToggle">
+                            <div class="avatar"><?php echo htmlspecialchars($userInitial); ?></div>
+                            <div class="info">
+                                <div class="name"><?php echo htmlspecialchars($userName); ?></div>
+                                <div class="role">OWNER</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-down chevron" style="color:#64748b; font-size:10px;"></i>
+                        </div>
+
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <a href="profile.php" class="dropdown-item"><i class="fa-solid fa-user"></i> My Profile</a>
+                            <a href="settings.php" class="dropdown-item"><i class="fa-solid fa-gear"></i> Settings</a>
+                            <div style="height:1px; background:var(--blue-soft); margin:4px 0;"></div>
+                            <a href="javascript:void(0)" class="dropdown-item danger" id="profileLogoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        </div>
+
+        <main class="content">
+
+            <!-- HERO -->
+            <div class="hero-card">
+                <div>
+                    <h2><i class="fa-solid fa-file-arrow-up me-2"></i> Online Permit &amp; Document Renewal</h2>
+                    <p>Submit your renewal requirements online without needing to visit the municipal hall.</p>
+                </div>
             </div>
 
-            <main class="content">
-                <div class="breadcrumb">
-                    <a href="dashboard.php"><i class="fa-solid fa-house"></i> Dashboard</a>
-                    <span class="sep"><i class="fa-solid fa-angle-right"></i></span>
-                    <strong>Permit Renewals Approval</strong>
+            <?php if (!empty($flashSuccess)): ?>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        Swal.fire({ icon: 'success', title: 'Success!', text: <?php echo json_encode($flashSuccess); ?>, confirmButtonColor: '#dc2626' });
+                    });
+                </script>
+            <?php endif; ?>
+
+            <?php if (!empty($flashError)): ?>
+                <div class="alert alert-danger" style="border-radius: 12px; font-size: 13px; margin-bottom: 20px;">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i> <?php echo h($flashError); ?>
                 </div>
+            <?php endif; ?>
 
-                <!-- PAGE HEADER -->
-                <div class="page-header">
-                    <div>
-                        <h1><i class="fa-solid fa-file-shield"></i> Online Permit Renewals Approval</h1>
-                        <p>Review and approve the documents and permits submitted by rental owners.</p>
-                    </div>
+            <!-- ✅ BAGO: WARNING BANNERS PARA SA EXPIRED AT EXPIRING DOCUMENTS -->
+            <?php if (!empty($expiredDocs) || !empty($expiringDocs)): ?>
+                <div class="alert-banner-container mb-4">
+                    <?php if (!empty($expiredDocs)): ?>
+                        <div class="alert-banner banner-danger">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <div>
+                                <h4>Mayroon kang <?php echo count($expiredDocs); ?> Expired na Permit!</h4>
+                                <p>Ang mga sumusunod na permit ay lampas na sa validity date. Paki-renew ito agad para maiwasan ang multa.</p>
+                                <ul>
+                                    <?php foreach ($expiredDocs as $ed): ?>
+                                        <li><strong><?php echo h($ed['title']); ?></strong> (Expired noong <?php echo date('M d, Y', strtotime($ed['permit_expiry_date'])); ?>)</li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($expiringDocs)): ?>
+                        <div class="alert-banner banner-warning mt-3">
+                            <i class="fa-solid fa-clock"></i>
+                            <div>
+                                <h4>Malapit nang ma-expire ang <?php echo count($expiringDocs); ?> permit(s)</h4>
+                                <p>Ito ay ma-expire sa loob ng 30 araw. Maari mo nang i-renew ngayon para hindi maabala.</p>
+                                <ul>
+                                    <?php foreach ($expiringDocs as $exd): ?>
+                                        <li><strong><?php echo h($exd['title']); ?></strong> (Valid until <?php echo date('M d, Y', strtotime($exd['permit_expiry_date'])); ?>)</li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
+            <?php endif; ?>
 
-                <!-- STATS STRIP -->
-                <?php
-                    $totalRenewals = count($renewals);
-                    $approvedCount = 0;
-                    $rejectedCount = 0;
-                    $pendingCount = 0;
-                    foreach ($renewals as $r) {
-                        $st = strtolower($r['status'] ?? 'pending');
-                        if ($st === 'approved') $approvedCount++;
-                        elseif ($st === 'rejected') $rejectedCount++;
-                        else $pendingCount++;
-                    }
-                ?>
-                <div class="stats-strip">
-                    <div class="stat-chip stat-red">
-                        <div class="stat-icon"><i class="fa-solid fa-file-circle-exclamation"></i></div>
-                        <div>
-                            <div class="stat-num"><?php echo $pendingCount; ?></div>
-                            <div class="stat-lbl">Pending Renewals</div>
-                        </div>
-                    </div>
-                    <div class="stat-chip stat-green">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
-                        <div>
-                            <div class="stat-num"><?php echo $approvedCount; ?></div>
-                            <div class="stat-lbl">Approved</div>
-                        </div>
-                    </div>
-                    <div class="stat-chip stat-amber">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-xmark"></i></div>
-                        <div>
-                            <div class="stat-num"><?php echo $rejectedCount; ?></div>
-                            <div class="stat-lbl">Rejected</div>
-                        </div>
-                    </div>
+            <!-- FORM PANEL -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span><i class="fa-solid fa-circle-plus"></i> File a New Renewal Request</span>
                 </div>
+                <div class="panel-body">
+                    <form id="renewalForm" action="" method="POST" enctype="multipart/form-data">
+                        <div class="row g-3">
+                            <div class="col-md-6 form-group">
+                                <label><i class="fa-solid fa-building me-1"></i> Select Rental Property <span class="text-danger">*</span></label>
+                                <select name="rental_id" id="rentalSelect" class="form-select" required onchange="updateExpiryField(this)">
+                                    <option value="">-- Choose your property --</option>
+                                    <?php foreach ($rentals as $r): ?>
+                                        <option value="<?php echo $r['id']; ?>" data-expiry="<?php echo h($r['permit_expiry_date'] ?? date('Y-m-d')); ?>">
+                                            <?php echo h(!empty($r['business_name']) ? $r['business_name'] : $r['rental_name']); ?> (<?php echo h($r['tracking_no']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
 
-                <!-- PANEL -->
-                <div class="panel">
-                    <div class="panel-head">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-list"></i> Renewal Requests
+                            <div class="col-md-6 form-group">
+                                <label><i class="fa-solid fa-file-lines me-1"></i> Document / Permit Type <span class="text-danger">*</span></label>
+                                <select name="document_type" class="form-select" required>
+                                    <option value="">-- Select Type --</option>
+                                    <option value="Business Permit Renewal">Business Permit (Mayor's Permit)</option>
+                                    <option value="Sanitary Permit Renewal">Sanitary Permit</option>
+                                    <option value="Fire Safety Inspection Certificate Renewal">Fire Safety Inspection Certificate (FSIC)</option>
+                                    <option value="Barangay Clearance Renewal">Barangay Clearance (for Business)</option>
+                                    <option value="Health Certificates Renewal">Health Certificates (Staff/Boarding House)</option>
+                                    <option value="Lease Contract Renewal">Lease Contract / Rental Agreement</option>
+                                    <option value="Lease Clearance Certificate Renewal">Lease Clearance Certificate</option>
+                                    <option value="Occupancy Compliance Permit Renewal">Occupancy Compliance Permit</option>
+                                    <option value="Building / Zoning Clearance Renewal">Building / Zoning Clearance</option>
+                                    <option value="Other Permit Renewal">Other Permit (Specify in Remarks)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 form-group">
+                                <label><i class="fa-solid fa-calendar me-1"></i> Current Expiry Date <span class="text-danger">*</span></label>
+                                <input type="date" name="current_expiry_date" id="current_expiry_date" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 form-group">
+                                <label><i class="fa-solid fa-upload me-1"></i> Upload Supporting Document (PDF / Image) <span class="text-danger">*</span></label>
+                                <input type="file" name="supporting_file" class="form-control" accept=".pdf, .jpg, .jpeg, .png" required>
+                            </div>
+
+                            <div class="col-12 form-group">
+                                <label><i class="fa-solid fa-note-sticky me-1"></i> Additional Remarks or Message (Optional)</label>
+                                <textarea name="remarks" class="form-control" rows="2" placeholder="Enter other necessary details if needed..."></textarea>
+                            </div>
+
+                            <div class="col-12 text-end pt-2">
+                                <button type="button" id="btnOpenPaymentModal" class="btn-primary-custom w-100 w-md-auto">
+                                    <i class="fa-solid fa-paper-plane"></i> Submit Renewal Online
+                                </button>
+                                <button type="submit" name="submit_renewal" id="realSubmitBtn" style="display: none;"></button>
+                            </div>
                         </div>
-                        <div class="panel-meta">Total: <strong><?php echo $totalRenewals; ?></strong> request<?php echo $totalRenewals === 1 ? '' : 's'; ?></div>
-                    </div>
+                    </form>
+                </div>
+            </div>
 
-                    <div class="table-wrap">
-                        <table class="table">
+            <!-- HISTORY PANEL -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span><i class="fa-solid fa-clock-rotate-left"></i> Renewal Requests History and Status</span>
+                    <span class="badge" style="background:var(--blue-soft); color:var(--accent-blue-dark); font-size:11px; padding:4px 12px; border-radius:999px; font-weight:700;"><?php echo count($renewals); ?> Requests</span>
+                </div>
+                <div class="table-responsive">
+                    <?php if (!empty($renewals)): ?>
+                        <table class="table align-middle">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Owner</th>
+                                    <th>Request Date</th>
                                     <th>Property / Business</th>
                                     <th>Document Type</th>
-                                    <th>Payment Verification</th>
+                                    <th>Permit No.</th>
+                                    <th>Valid Expiry Date</th>
                                     <th>Attachment</th>
-                                    <th>Status</th>
-                                    <th style="text-align:center;">Action</th>
+                                    <th class="text-center">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if (!empty($renewals)): ?>
-                                    <?php foreach ($renewals as $row): ?>
-                                    <?php 
-                                        $bizName = !empty($row['business_name']) ? $row['business_name'] : $row['rental_name']; 
-                                        
-                                        $finalRef = !empty($row['final_ref_no']) ? trim($row['final_ref_no']) : '';
-                                        $hasPaid = ($finalRef !== '' && $finalRef !== 'N/A');
+                                <?php foreach ($renewals as $row): ?>
+                                <?php
+                                    $st = strtolower($row['status']);
+                                    $bizName = !empty($row['business_name']) ? $row['business_name'] : $row['rental_name'];
 
-                                        if (!$hasPaid && !empty($row['payment_status'])) {
-                                            $ps = strtolower(trim($row['payment_status']));
-                                            if (in_array($ps, ['paid', 'completed', 'success', 'verified', 'approved'])) {
-                                                $hasPaid = true;
-                                                if ($finalRef === '' || $finalRef === 'N/A') {
-                                                    $finalRef = !empty($row['or_number']) ? $row['or_number'] : 'PAY-' . ($row['id'] ?? '');
-                                                }
+                                    if ($st === 'approved') {
+                                        $displayExpiry = !empty($row['updated_expiry_date']) ? $row['updated_expiry_date'] : $row['current_expiry_date'];
+                                        $expiryBadge = '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 ms-1" style="font-size:10px;"><i class="fa-solid fa-calendar-check me-1"></i> Approved Renewal</span>';
+                                    } elseif ($st === 'rejected') {
+                                        $displayExpiry = $row['current_expiry_date'];
+                                        $expiryBadge = '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1" style="font-size:10px;"><i class="fa-solid fa-circle-xmark me-1"></i> Rejected</span>';
+                                    } else {
+                                        $displayExpiry = $row['current_expiry_date'];
+                                        $expiryBadge = '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 ms-1" style="font-size:10px;"><i class="fa-solid fa-clock me-1"></i> Pending Verification</span>';
+                                    }
+
+                                    $linkedPermitNo = null;
+                                    $linkedPermitId = null;
+                                    if ($st === 'approved' && $hasDocuments && $hasPermitNoCol) {
+                                        try {
+                                            $doctypeKeyword = str_replace(' Renewal', '', $row['document_type']);
+                                            $permitLookupStmt = $conn->prepare("
+                                                SELECT id, business_permit_no FROM documents 
+                                                WHERE user_id = :uid AND rental_id = :rid 
+                                                  AND business_permit_no IS NOT NULL 
+                                                  AND title ILIKE :doctype
+                                                ORDER BY uploaded_at DESC LIMIT 1
+                                            ");
+                                            $permitLookupStmt->execute([':uid' => $userId, ':rid' => $row['rental_id'], ':doctype' => '%' . $doctypeKeyword . '%']);
+                                            $linkedPermit = $permitLookupStmt->fetch(PDO::FETCH_ASSOC);
+                                            if ($linkedPermit) {
+                                                $linkedPermitNo = $linkedPermit['business_permit_no'];
+                                                $linkedPermitId = $linkedPermit['id'];
                                             }
-                                        }
-                                        
-                                        $payMethod = !empty($row['payment_method']) ? $row['payment_method'] : 'LGU Treasury';
-                                        $isEWallet = (bool) preg_match('/gcash|paymaya|grabpay|e-wallet|online|bank|card|maya/i', $payMethod);
-                                        
-                                        $amountPaid = isset($row['amount_paid']) && $row['amount_paid'] !== null
-                                            ? number_format((float)$row['amount_paid'], 2)
-                                            : '0.00';
-                                        $payDate = !empty($row['payment_date']) ? date('M d, Y', strtotime($row['payment_date'])) : 'N/A';
-
-                                        // ✅ CHECK KUNG SUPABASE URL O LOCAL FILE
-                                        $filePath = $row['supporting_file'];
-                                        if (filter_var($filePath, FILTER_VALIDATE_URL)) {
-                                            $viewPath = h($filePath); // Supabase URL
-                                        } else {
-                                            $viewPath = "../uploads/renewals/" . h($filePath); // Local fallback
-                                        }
-                                    ?>
-                                    <tr>
-                                        <td data-label="Date"><?php echo date('M d, Y h:i A', strtotime($row['created_at'])); ?></td>
-                                        <td data-label="Owner"><strong style="color:#000000 !important;"><?php echo h($row['owner_name']); ?></strong></td>
-                                        <td data-label="Property / Business">
-                                            <?php echo h($bizName); ?><br>
-                                            <small style="color:#64748b;">Tracking: <?php echo h($row['tracking_no']); ?></small>
-                                        </td>
-                                        <td data-label="Document Type"><?php echo h($row['document_type']); ?></td>
-                                        
-                                        <td data-label="Payment Verification">
-                                            <?php if ($hasPaid): ?>
-                                                <?php if ($isEWallet): ?>
-                                                    <span class="badge badge-info mb-1"><i class="fa-solid fa-wallet"></i> PAID VIA E-WALLET</span><br>
-                                                    <small style="font-size: 11px; color: #0f766e; font-weight: 600;">Ref No: <?php echo h($finalRef); ?></small>
-                                                <?php else: ?>
-                                                    <span class="badge badge-success mb-1"><i class="fa-solid fa-circle-check"></i> PAID (TREASURY)</span><br>
-                                                    <small style="font-size: 11px; color: #15803d; font-weight: 600;">O.R. No: <?php echo h($finalRef); ?></small>
-                                                <?php endif; ?>
-                                                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 d-block mt-1 open-receipt-modal" style="font-size: 10.5px; color: #0284c7;"
-                                                        data-ref="<?php echo h($finalRef); ?>"
-                                                        data-amount="₱<?php echo $amountPaid; ?>"
-                                                        data-date="<?php echo h($payDate); ?>"
-                                                        data-method="<?php echo h($payMethod); ?>"
-                                                        data-owner="<?php echo h($row['owner_name']); ?>"
-                                                        data-business="<?php echo h($bizName); ?>">
-                                                    <i class="fa-solid fa-receipt me-1"></i> View Receipt / Ref Info
+                                        } catch (PDOException $e) { $linkedPermitNo = null; }
+                                    }
+                                ?>
+                                <tr>
+                                    <td data-label="Request Date"><?php echo date('M d, Y h:i A', strtotime($row['created_at'])); ?></td>
+                                    <td data-label="Property">
+                                        <strong><?php echo h($bizName); ?></strong><br>
+                                        <small style="color:#64748b;"><?php echo h($row['tracking_no']); ?></small>
+                                    </td>
+                                    <td data-label="Document Type"><?php echo h($row['document_type']); ?></td>
+                                    <td data-label="Permit No.">
+                                        <?php if ($linkedPermitNo): ?>
+                                            <span style="font-family:monospace; font-weight:700; color:var(--accent-blue-dark); background:var(--blue-soft); padding:3px 10px; border-radius:6px; font-size:11.5px; display:inline-block;"><?php echo h($linkedPermitNo); ?></span>
+                                            <?php if ($linkedPermitId): ?>
+                                                <br>
+                                                <button type="button" class="btn btn-sm text-primary p-0 mt-1 open-view-file-modal" 
+                                                        style="font-size:10.5px; text-decoration:none; color:var(--accent-blue) !important;"
+                                                        data-file="view_permit.php?id=<?php echo $linkedPermitId; ?>" 
+                                                        data-title="Official Permit - <?php echo h($linkedPermitNo); ?>">
+                                                    <i class="fa-solid fa-eye"></i> View Official Permit
                                                 </button>
-                                            <?php else: ?>
-                                                <span class="badge badge-danger mb-1"><i class="fa-solid fa-circle-xmark"></i> UNPAID</span><br>
-                                                <small style="font-size: 10.5px; color: #94a3b8;">No O.R. or E-Wallet Record</small>
                                             <?php endif; ?>
-                                        </td>
-
-                                        <td data-label="Attachment">
-                                            <?php if (!empty($row['supporting_file'])): ?>
-                                                <button type="button" class="btn-action btn-view open-view-file-modal" 
-                                                        data-file="<?php echo $viewPath; ?>" 
-                                                        data-title="<?php echo h($row['document_type']); ?> - <?php echo h($bizName); ?>">
-                                                    <i class="fa-solid fa-eye"></i> View File
-                                                </button>
-                                            <?php else: ?>
-                                                <span style="color:#94a3b8;">No File</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td data-label="Status">
-                                            <?php 
-                                            $st = strtolower($row['status']);
-                                            if ($st === 'approved'): ?>
-                                                <span class="badge badge-success">Approved</span>
-                                            <?php elseif ($st === 'rejected'): ?>
-                                                <span class="badge badge-danger">Rejected</span>
-                                            <?php else: ?>
-                                                <span class="badge badge-warning">Pending</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td data-label="Action" style="text-align:center;">
-                                            <?php if ($st === 'pending'): ?>
-                                                <div style="display: flex; gap: 6px; justify-content: center;">
-                                                    <button type="button" class="btn-action btn-approve open-approve-modal" 
-                                                            data-id="<?php echo $row['id']; ?>" 
-                                                            data-rental-id="<?php echo $row['rental_id']; ?>" 
-                                                            data-business="<?php echo h($bizName); ?>" 
-                                                            data-expiry="<?php echo h($row['current_expiry_date']); ?>"
-                                                            <?php echo !$hasPaid ? 'disabled title="Cannot Approve: Owner has NOT paid yet via Treasury or E-Wallet!"' : ''; ?>>
-                                                        <i class="fa-solid fa-check"></i> Approve
-                                                    </button>
-
-                                                    <form action="" method="POST" style="display:inline;">
-                                                        <input type="hidden" name="renewal_id" value="<?php echo $row['id']; ?>">
-                                                        <input type="hidden" name="rental_id" value="<?php echo $row['rental_id']; ?>">
-                                                        <input type="hidden" name="action_type" value="Rejected">
-                                                        <button type="submit" name="action_renewal" class="btn-action btn-reject" title="Reject Renewal" onclick="return confirm('Are you sure you want to reject this renewal?');">
-                                                            <i class="fa-solid fa-xmark"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            <?php else: ?>
-                                                <span style="color:#94a3b8; font-size:11px;">Completed</span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="8">
-                                            <div class="empty-state">
-                                                <i class="fa-solid fa-inbox"></i>
-                                                <h4>No renewal requests received</h4>
-                                                <p>Renewal requests from owners will appear here.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
+                                        <?php else: ?>
+                                            <span style="color:#94a3b8; font-style:italic; font-size:11px;">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td data-label="Expiry Date">
+                                        <strong style="color:var(--accent-blue);"><?php echo h($displayExpiry); ?></strong><br>
+                                        <?php echo $expiryBadge; ?>
+                                    </td>
+                                    <td data-label="Attachment">
+                                        <?php 
+                                        if (!empty($row['supporting_file'])): 
+                                            // ✅ Kung galing sa Supabase (URL), i-view
+                                            if (filter_var($row['supporting_file'], FILTER_VALIDATE_URL)): 
+                                        ?>
+                                            <button type="button" class="btn btn-sm btn-outline-primary open-view-file-modal" style="font-size:11px; border-radius:8px; padding:4px 10px; color:var(--accent-blue); border-color:var(--card-border);"
+                                                    data-file="<?php echo h($row['supporting_file']); ?>"
+                                                    data-title="<?php echo h($row['document_type']); ?> - <?php echo h($bizName); ?>">
+                                                <i class="fa-solid fa-eye"></i> View File
+                                            </button>
+                                        <?php else: ?>
+                                            <!-- Fallback kung lumang local file (Render Ephemeral) -->
+                                            <span style="color:var(--danger); font-size:11px; font-style:italic;" title="Ang lumang file na ito ay nabura na ng server.">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> File Missing
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php else: ?>
+                                            <span style="color:#94a3b8; font-size:11px; font-style:italic;">No File</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center" data-label="Status">
+                                        <?php if ($st === 'approved'): ?>
+                                            <span class="badge-custom badge-success"><i class="fa-solid fa-check"></i> Approved &amp; Renewed</span>
+                                        <?php elseif ($st === 'rejected'): ?>
+                                            <span class="badge-custom badge-danger"><i class="fa-solid fa-xmark"></i> Rejected</span>
+                                        <?php else: ?>
+                                            <span class="badge-custom badge-warning"><i class="fa-solid fa-clock"></i> Pending Verification</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
                             </tbody>
                         </table>
-                    </div>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <h3>No Renewal Requests Yet</h3>
+                        </div>
+                    <?php endif; ?>
                 </div>
+            </div>
 
-                <footer class="footer">
-                    <span>&copy; <?php echo date('Y'); ?> <span class="brand">RENTRACK LGU</span></span>
-                    <span>Unified Rental Registration, Tracking &amp; Compliance System</span>
-                </footer>
-            </main>
+            <footer class="dashboard-footer">
+                <span>&copy; <?php echo date('Y'); ?> <span style="color:var(--accent-blue); font-weight:700;">RENTRACK LGU</span> &middot; Unified Rental System</span>
+                <span>Owner Portal</span>
+            </footer>
+        </main>
+    </div>
+
+    <!-- SEARCH MODAL -->
+    <div class="search-modal-overlay" id="searchModalOverlay" onclick="closeSearchModalOnOutside(event)">
+        <div class="search-modal-content">
+            <div class="search-modal-header">
+                <i class="fa-solid fa-magnifying-glass search-icon-main"></i>
+                <input type="text" class="search-modal-input" id="modalSearchInput" placeholder="Search records..." autocomplete="off">
+                <div class="search-modal-close" onclick="closeSearchModal()"><i class="fa-solid fa-xmark"></i></div>
+            </div>
+            <div class="search-modal-body" id="modalSearchResults">
+                <div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;">
+                    <i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>
+                    Type at least 2 characters to search records...
+                </div>
+            </div>
+            <div class="search-shortcut-hint">
+                <span>Quick search across all your property records</span>
+                <span>Press <kbd>ESC</kbd> to close</span>
+            </div>
         </div>
     </div>
 
-    <!-- ===== OFFICIAL RECEIPT & E-WALLET VERIFICATION MODAL ===== -->
-    <div class="modal fade" id="receiptInfoModal" tabindex="-1" aria-hidden="true">
+    <!-- AI ASSISTANT -->
+    <div id="aiAssistantWrapper">
+        <button id="aiToggleBtn" title="Ask AI Assistant" aria-label="Ask AI Assistant">
+            <i class="fa-solid fa-robot"></i>
+        </button>
+        <div id="aiChatWindow">
+            <div style="background:linear-gradient(135deg, #dc2626, #991b1b); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-robot" style="font-size:16px; color:#fecdd3;"></i>
+                    <div>
+                        <strong style="font-size:14px; display:block; font-family:'Space Grotesk', sans-serif;">RENTRACK AI</strong>
+                        <span style="font-size:10px; color:#fecdd3;">Owner LGU Assistant</span>
+                    </div>
+                </div>
+                <button id="aiCloseBtn" style="background:transparent; border:none; color:#fff; font-size:16px; cursor:pointer; padding:4px;" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="aiChatBody" style="flex:1; padding:14px; overflow-y:auto; background:#f8fafc; display:flex; flex-direction:column; gap:10px; font-size:12.5px;">
+                <div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">
+                    Hello <?php echo htmlspecialchars($userName); ?>! Ask me about your renewals, permits, rentals, or payments.
+                </div>
+            </div>
+            <div style="padding:10px; background:#ffffff; border-top:1px solid var(--card-border); display:flex; gap:8px; flex-shrink:0;">
+                <input type="text" id="aiChatInput" placeholder="Ask e.g., 'Any pending renewals?'..." style="flex:1; min-width:0; padding:8px 12px; border:1px solid var(--card-border); border-radius:999px; outline:none; font-size:12.5px; background:#f8fafc;">
+                <button id="aiSendBtn" style="background:var(--accent-blue); border:none; color:#fff; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;" aria-label="Send"><i class="fa-solid fa-paper-plane" style="font-size:12px;"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYMENT REMINDER MODAL -->
+    <div class="modal fade" id="paymentReminderModal" tabindex="-1" aria-hidden="true" style="z-index: 1065;">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="border: 1.5px solid #dc2626;">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fa-solid fa-receipt"></i> Payment Verification Record
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <span class="badge badge-success px-3 py-2" style="font-size:12px;"><i class="fa-solid fa-circle-check me-1"></i> VERIFIED TRANSACTION</span>
-                    </div>
-                    <div class="p-3 mb-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary small">O.R. / Ref No:</span>
-                            <strong class="text-danger" id="rec_or">---</strong>
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden; background: #ffffff;">
+                <div class="modal-header border-0 text-white p-4" style="background: linear-gradient(135deg, #dc2626, #991b1b);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                            <i class="fa-solid fa-credit-card"></i>
                         </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary small">Amount Paid:</span>
-                            <strong class="text-dark" id="rec_amount">---</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary small">Date Paid:</span>
-                            <span class="text-dark" id="rec_date">---</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-secondary small">Payment Channel:</span>
-                            <span class="text-info fw-bold" id="rec_method">---</span>
-                        </div>
-                        <hr style="border-color: #e2e8f0;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-secondary small">Payor Name:</span>
-                            <span class="text-dark" id="rec_owner">---</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-secondary small">Business Name:</span>
-                            <span class="text-dark" id="rec_business">---</span>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" style="font-size: 17px;">Payment Notice</h5>
+                            <small style="opacity: 0.85; font-size: 12px;">LGU Online Document Renewal</small>
                         </div>
                     </div>
-                    <small class="text-muted d-block text-center" style="font-size: 11px;">
-                        <i class="fa-solid fa-shield-halved me-1 text-danger"></i> Transaction verified via LGU Treasury / Online Payment Gateway.
-                    </small>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-sm btn-secondary w-100 fw-bold" data-bs-dismiss="modal">Close</button>
+                <div class="modal-body p-4 text-center">
+                    <div class="my-2">
+                        <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill fw-bold border border-warning border-opacity-25" style="font-size: 13px;">
+                            <i class="fa-solid fa-circle-exclamation me-1"></i> Renewal Fee Required
+                        </span>
+                    </div>
+                    <h6 class="fw-bold text-dark mt-3 mb-2" style="font-size: 16px;">Please Pay the Required Amount</h6>
+                    <p class="text-secondary mb-0" style="font-size: 13.5px; line-height: 1.6;">
+                        <strong>"Please pay the amount said in order to renew your documents."</strong>
+                    </p>
+                    <p class="text-muted mt-2" style="font-size: 12px;">
+                        Once you proceed, your renewal request will be forwarded to the Treasurer / LGU Staff for verification and processing.
+                    </p>
+                </div>
+                <div class="modal-footer border-top-0 p-3 bg-light d-flex justify-content-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-light text-secondary border fw-semibold px-3 py-2 flex-grow-1 flex-md-grow-0" data-bs-dismiss="modal" style="border-radius: 10px; font-size: 13px;">Cancel</button>
+                    <button type="button" id="btnConfirmProceed" class="btn btn-primary fw-bold px-4 py-2 flex-grow-1 flex-md-grow-0" style="border-radius: 10px; font-size: 13px; background: var(--accent-blue); border: none;">
+                        <i class="fa-solid fa-check-circle me-1"></i> Submit Renewal
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===== FILE VIEW MODAL ===== -->
-    <div class="modal fade" id="fileViewModal" tabindex="-1" aria-hidden="true">
+    <!-- FILE VIEW MODAL -->
+    <div class="modal fade" id="fileViewModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
         <div class="modal-dialog modal-dialog-centered modal-xl">
-            <div class="modal-content" style="border: 1.5px solid #dc2626; overflow: hidden;">
-                <div class="modal-header d-flex justify-content-between align-items-center">
-                    <h5 class="modal-title" id="fileViewModalTitle">
+            <div class="modal-content" style="background: #ffffff; border: 1.5px solid var(--accent-blue); color: #0f172a; border-radius: 20px; box-shadow: 0 25px 60px rgba(220, 38, 38, 0.25); overflow: hidden;">
+                <div class="modal-header border-bottom border-light-subtle px-3 px-md-4 py-3 d-flex justify-content-between align-items-center" style="background: #f8fafc;">
+                    <h5 class="modal-title fs-6 fw-bold text-primary d-flex align-items-center gap-2" id="fileViewModalTitle" style="color: var(--accent-blue) !important;">
                         <i class="fa-solid fa-file-pdf"></i> Attachment Preview
                     </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <div id="imageZoomControls" class="d-none me-3">
-                            <button type="button" class="btn btn-sm btn-light border me-1" id="zoomInBtn" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-                            <button type="button" class="btn btn-sm btn-light border me-1" id="zoomOutBtn" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-                            <button type="button" class="btn btn-sm btn-light border" id="zoomResetBtn" title="Reset Zoom"><i class="fa-solid fa-rotate-right"></i></button>
+                    <div class="d-flex align-items-center gap-1 gap-md-2">
+                        <div id="imageZoomControls" class="d-none me-1 me-md-2">
+                            <button type="button" class="btn btn-sm btn-light border-secondary-subtle" id="zoomInBtn"><i class="fa-solid fa-magnifying-glass-plus text-primary" style="color: var(--accent-blue);"></i></button>
+                            <button type="button" class="btn btn-sm btn-light border-secondary-subtle" id="zoomOutBtn"><i class="fa-solid fa-magnifying-glass-minus text-primary" style="color: var(--accent-blue);"></i></button>
+                            <button type="button" class="btn btn-sm btn-light border-secondary-subtle" id="zoomResetBtn"><i class="fa-solid fa-rotate-right text-primary" style="color: var(--accent-blue);"></i></button>
                         </div>
-                        <a id="downloadFileBtn" href="#" target="_blank" class="btn btn-sm btn-outline-danger me-2" title="Download File">
-                            <i class="fa-solid fa-download"></i> Open in New Tab
+                        <a id="downloadFileBtn" href="#" target="_blank" class="btn btn-sm btn-outline-primary" title="Open in New Tab" style="color: var(--accent-blue); border-color: var(--card-border);">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> <span class="d-none d-sm-inline">New Tab</span>
                         </a>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
-                <div class="modal-body p-3 text-center" style="min-height: 500px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+                <div class="modal-body p-2 p-md-3 text-center" style="min-height: 300px; display: flex; align-items: center; justify-content: center; background: #0f172a;">
                     <div id="filePreviewContainer" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===== GLOBAL APPROVAL MODAL ===== -->
-    <div class="modal fade" id="globalApproveModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="border: 1.5px solid #dc2626;">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fa-solid fa-calendar-check"></i> Approve Permit Renewal
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="" method="POST">
-                    <div class="modal-body">
-                        <input type="hidden" name="renewal_id" id="modal_renewal_id">
-                        <input type="hidden" name="rental_id" id="modal_rental_id">
-                        <input type="hidden" name="action_type" value="Approved">
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Business / Property Name:</label>
-                            <div class="fw-bold text-dark" id="modal_business_name">---</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-semibold">Current Expiry Date:</label>
-                            <input type="text" id="modal_current_expiry" class="form-control text-dark" readonly style="font-size:13px; background-color: #f1f5f9 !important;">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-dark small fw-bold">Set New Expiry Date:</label>
-                            <input type="date" name="new_expiry_date" id="modal_new_expiry" class="form-control text-dark" value="<?php echo date('Y-m-d', strtotime('+1 year')); ?>" required style="font-size:14px;">
-                            <small class="text-muted d-block mt-1" style="font-size: 11px;">Maaari mong palitan o i-edit ang petsa para sa bagong expiration duration.</small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" name="action_renewal" class="btn btn-sm fw-bold px-3" style="background-color: #dc2626; border: none; color: #fff;">
-                            <i class="fa-solid fa-check me-1"></i> Update &amp; Approve
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- SEARCH MODAL -->
-    <div class="modal fade" id="searchModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fa-solid fa-magnifying-glass"></i> Global System Search
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div style="position: relative; margin-bottom: 20px;">
-                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary-red); font-size: 16px;"></i>
-                        <input type="text" id="modalSearchInput" class="form-control" placeholder="Search by tracking number, business name, or owner..." autocomplete="off" style="padding: 14px 16px 14px 48px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-size: 14px;">
-                    </div>
-                    <div id="modalSearchResults" style="max-height: 380px; overflow-y: auto;">
-                        <div style="text-align: center; padding: 40px 20px; color: #64748b; font-size: 13px;">
-                            Type at least 2 characters to begin searching records...
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        /* ============================================
-           NAV MENU — INLINE DESKTOP / SLIDE-IN MOBILE
-        ============================================ */
-        const mainNavBar = document.getElementById('mainNavBar');
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        const drawerCloseBtn = document.getElementById('drawerCloseBtn');
+    /* NAV MENU */
+    const mainNavBar = document.getElementById('mainNavBar');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const drawerCloseBtn = document.getElementById('drawerCloseBtn');
 
-        function openDrawer() {
-            mainNavBar.classList.add('mobile-open');
-            sidebarOverlay.classList.add('active');
-            document.body.classList.add('drawer-open');
+    function openDrawer() {
+        mainNavBar.classList.add('mobile-open');
+        sidebarOverlay.classList.add('active');
+        document.body.classList.add('drawer-open');
+    }
+    function closeDrawer() {
+        mainNavBar.classList.remove('mobile-open');
+        sidebarOverlay.classList.remove('active');
+        document.body.classList.remove('drawer-open');
+    }
+    menuToggle?.addEventListener('click', openDrawer);
+    sidebarOverlay?.addEventListener('click', closeDrawer);
+    drawerCloseBtn?.addEventListener('click', closeDrawer);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDrawer();
+            closeSearchModal();
+            document.querySelectorAll('.nav-item.has-dropdown.open').forEach(i => i.classList.remove('open'));
         }
-        function closeDrawer() {
-            mainNavBar.classList.remove('mobile-open');
-            sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('drawer-open');
+    });
+
+    document.querySelectorAll('.nav-item.has-dropdown > .nav-link').forEach(function(trigger) {
+        trigger.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            const parent = trigger.parentElement;
+            const wasOpen = parent.classList.contains('open');
+            document.querySelectorAll('.nav-item.has-dropdown.open').forEach(i => { if (i !== parent) i.classList.remove('open'); });
+            parent.classList.toggle('open', !wasOpen);
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.nav-item.has-dropdown')) {
+            document.querySelectorAll('.nav-item.has-dropdown.open').forEach(i => i.classList.remove('open'));
+        }
+    });
+
+    mainNavBar.querySelectorAll('.nav-dropdown a, .nav-link:not([data-dropdown])').forEach(function(link) {
+        link.addEventListener('click', function() { if (window.innerWidth <= 1200) closeDrawer(); });
+    });
+    window.addEventListener('resize', function() { if (window.innerWidth > 1200) closeDrawer(); });
+
+    /* CLOCK */
+    function updateClock() {
+        const t = document.getElementById('liveTime');
+        if (!t) return;
+        t.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    /* NOTIFICATIONS */
+    document.getElementById('notifClearBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fetch('?ajax_action=clear_notifs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('notifBadgeCount')?.remove();
+                    document.getElementById('notifHeaderCount')?.remove();
+                    const lb = document.getElementById('notifListBody');
+                    if (lb) lb.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8; font-size:12px;"><i class="fa-solid fa-check-double" style="font-size:20px; margin-bottom:8px; display:block; color:var(--accent-blue);"></i>You\'re all caught up!</div>';
+                }
+            });
+    });
+
+    function markNotificationReadAndRedirect(notifId, redirectUrl, element) {
+        fetch('?ajax_action=mark_notif_read&id=' + notifId)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    element.querySelector('.unread-dot')?.remove();
+                    element.style.background = '#fff';
+                    const badge = document.getElementById('notifBadgeCount');
+                    const headerCount = document.getElementById('notifHeaderCount');
+                    if (badge) {
+                        let c = parseInt(badge.textContent) - 1;
+                        if (c > 0) { badge.textContent = c; if (headerCount) headerCount.textContent = c + ' New'; }
+                        else { badge.remove(); headerCount?.remove(); }
+                    }
+                }
+                window.location.href = redirectUrl;
+            })
+            .catch(() => { window.location.href = redirectUrl; });
+    }
+
+    /* DROPDOWNS */
+    const notifBtn = document.getElementById('notifBtn');
+    const notifDropdown = document.getElementById('notifDropdown');
+    const profileToggle = document.getElementById('profileToggle');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    notifBtn?.addEventListener('click', (e) => { e.stopPropagation(); profileDropdown?.classList.remove('show'); notifDropdown.classList.toggle('show'); });
+    profileToggle?.addEventListener('click', (e) => { e.stopPropagation(); notifDropdown?.classList.remove('show'); profileDropdown.classList.toggle('show'); });
+    if (notifDropdown) notifDropdown.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', () => { profileDropdown?.classList.remove('show'); notifDropdown?.classList.remove('show'); });
+
+    /* SEARCH MODAL */
+    const searchModalOverlay = document.getElementById('searchModalOverlay');
+    const modalSearchInput = document.getElementById('modalSearchInput');
+    const modalSearchResults = document.getElementById('modalSearchResults');
+
+    function openSearchModal() { searchModalOverlay.classList.add('active'); setTimeout(() => modalSearchInput.focus(), 100); }
+    function closeSearchModal() {
+        searchModalOverlay.classList.remove('active');
+        modalSearchInput.value = '';
+        modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+    }
+    function closeSearchModalOnOutside(event) { if (event.target === searchModalOverlay) closeSearchModal(); }
+
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearchModal(); }
+    });
+
+    let searchTimeout;
+    modalSearchInput?.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        let query = this.value.trim();
+        if (query.length < 2) {
+            modalSearchResults.innerHTML = `<div style="text-align:center; padding:40px 12px; color:#64748b; font-size:13px;"><i class="fa-solid fa-keyboard" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.5; color:var(--accent-blue);"></i>Type at least 2 characters to search records...</div>`;
+            return;
+        }
+        modalSearchResults.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-bottom:8px; color:var(--accent-blue);"></i><div>Searching records...</div></div>`;
+        searchTimeout = setTimeout(() => {
+            fetch('?ajax_action=search&q=' + encodeURIComponent(query))
+                .then(res => res.text())
+                .then(html => { modalSearchResults.innerHTML = html; });
+        }, 300);
+    });
+
+    /* AI ASSISTANT */
+    const aiToggleBtn = document.getElementById('aiToggleBtn');
+    const aiCloseBtn = document.getElementById('aiCloseBtn');
+    const aiChatWindow = document.getElementById('aiChatWindow');
+    const aiSendBtn = document.getElementById('aiSendBtn');
+    const aiChatInput = document.getElementById('aiChatInput');
+    const aiChatBody = document.getElementById('aiChatBody');
+
+    aiToggleBtn?.addEventListener('click', () => {
+        const isVisible = aiChatWindow.style.display === 'flex';
+        aiChatWindow.style.display = isVisible ? 'none' : 'flex';
+        if (!isVisible) setTimeout(() => aiChatInput.focus(), 150);
+    });
+    aiCloseBtn?.addEventListener('click', () => { aiChatWindow.style.display = 'none'; });
+
+    function sendAiMessage() {
+        const text = aiChatInput.value.trim();
+        if (!text) return;
+        aiChatBody.innerHTML += `<div style="background:var(--accent-blue); color:#fff; padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-end; border-bottom-right-radius:2px; word-wrap:break-word;">${escapeHtml(text)}</div>`;
+        aiChatInput.value = '';
+        aiChatBody.scrollTop = aiChatBody.scrollHeight;
+        const loadingId = 'ai-loading-' + Date.now();
+        aiChatBody.innerHTML += `<div id="${loadingId}" style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;"><i class="fa-solid fa-spinner fa-spin"></i> Thinking...</div>`;
+        aiChatBody.scrollTop = aiChatBody.scrollHeight;
+
+        fetch('?ajax_action=ai_chat&msg=' + encodeURIComponent(text))
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById(loadingId).remove();
+                aiChatBody.innerHTML += `<div style="background:var(--blue-soft); color:var(--accent-blue-dark); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px; word-wrap:break-word;">${data.reply}</div>`;
+                aiChatBody.scrollTop = aiChatBody.scrollHeight;
+            })
+            .catch(() => {
+                document.getElementById(loadingId).remove();
+                aiChatBody.innerHTML += `<div style="background:var(--danger-bg); color:var(--danger); padding:10px 12px; border-radius:12px; max-width:85%; align-self:flex-start; border-bottom-left-radius:2px;">Sorry, an error occurred.</div>`;
+                aiChatBody.scrollTop = aiChatBody.scrollHeight;
+            });
+    }
+    aiSendBtn?.addEventListener('click', sendAiMessage);
+    aiChatInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAiMessage(); });
+
+    function escapeHtml(text) {
+        const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    /* LOGOUT */
+    function confirmLogout() {
+        Swal.fire({
+            title: 'Logout from RENTRACK?',
+            text: 'Are you sure you want to log out?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Logout',
+            background: '#ffffff', color: '#0f172a'
+        }).then((res) => {
+            if (res.isConfirmed) {
+                const logoutForm = document.getElementById('logoutForm');
+                if (logoutForm) logoutForm.submit();
+                else window.location.href = '../logout.php';
+            }
+        });
+    }
+    document.getElementById('profileLogoutBtn')?.addEventListener('click', confirmLogout);
+
+    /* FORM LOGIC */
+    function updateExpiryField(selectElement) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const expiryDate = selectedOption.getAttribute('data-expiry');
+        const expiryInput = document.getElementById('current_expiry_date');
+        if (expiryDate && expiryDate !== 'NULL') expiryInput.value = expiryDate;
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const renewalForm = document.getElementById('renewalForm');
+        const btnOpenPaymentModal = document.getElementById('btnOpenPaymentModal');
+        const realSubmitBtn = document.getElementById('realSubmitBtn');
+        const paymentModalElement = new bootstrap.Modal(document.getElementById('paymentReminderModal'));
+        const btnConfirmProceed = document.getElementById('btnConfirmProceed');
+
+        if (btnOpenPaymentModal) {
+            btnOpenPaymentModal.addEventListener('click', function() {
+                if (renewalForm.checkValidity()) paymentModalElement.show();
+                else renewalForm.reportValidity();
+            });
+        }
+        if (btnConfirmProceed) {
+            btnConfirmProceed.addEventListener('click', function() {
+                paymentModalElement.hide();
+                realSubmitBtn.click();
+            });
         }
 
-        menuToggle.addEventListener('click', openDrawer);
-        sidebarOverlay.addEventListener('click', closeDrawer);
-        drawerCloseBtn?.addEventListener('click', closeDrawer);
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeDrawer();
-                document.querySelectorAll('.nav-item.has-dropdown.open').forEach(function(item) {
-                    item.classList.remove('open');
-                });
-            }
-        });
-
-        document.querySelectorAll('.nav-item.has-dropdown > .nav-link').forEach(function(trigger) {
-            trigger.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const parent = trigger.parentElement;
-                const wasOpen = parent.classList.contains('open');
-                document.querySelectorAll('.nav-item.has-dropdown.open').forEach(function(item) {
-                    if (item !== parent) item.classList.remove('open');
-                });
-                parent.classList.toggle('open', !wasOpen);
-            });
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.nav-item.has-dropdown')) {
-                document.querySelectorAll('.nav-item.has-dropdown.open').forEach(function(item) {
-                    item.classList.remove('open');
-                });
-            }
-        });
-
-        mainNavBar.querySelectorAll('.nav-dropdown a, .nav-link:not([data-dropdown])').forEach(function(link) {
-            link.addEventListener('click', function() {
-                if (window.innerWidth <= 1200) closeDrawer();
-            });
-        });
-
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 1200) closeDrawer();
-        });
-
-        /* ============================================
-           CLOCK
-        ============================================ */
-        setInterval(() => {
-            const d = new Date();
-            let h = d.getHours(), m = d.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM';
-            h = h % 12 || 12;
-            const clockEl = document.getElementById('clockTime');
-            if (clockEl) clockEl.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
-        }, 1000);
-
-        /* ============================================
-           NOTIFICATIONS + PROFILE
-        ============================================ */
-        const notifBtn = document.getElementById('notifBtn');
-        const notifDropdown = document.getElementById('notifDropdown');
-        const profileToggle = document.getElementById('profileToggle');
-        const profileDropdown = document.getElementById('profileDropdown');
-
-        notifBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            profileDropdown?.classList.remove('show');
-            notifDropdown.classList.toggle('show');
-            if (notifDropdown.classList.contains('show')) {
-                fetch('renewals_approval.php?ajax_action=read_notif')
-                    .then(r => r.text())
-                    .then(data => {
-                        if (data === 'success') {
-                            const badge = notifBtn.querySelector('.badge');
-                            if (badge) badge.style.display = 'none';
-                        }
-                    });
-            }
-        });
-
-        profileToggle?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            notifDropdown?.classList.remove('show');
-            profileDropdown.classList.toggle('show');
-        });
-
-        window.addEventListener('click', () => {
-            notifDropdown?.classList.remove('show');
-            profileDropdown?.classList.remove('show');
-        });
-
-        /* ============================================
-           RECEIPT MODAL
-        ============================================ */
-        const receiptModal = new bootstrap.Modal(document.getElementById('receiptInfoModal'));
-        document.querySelectorAll('.open-receipt-modal').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.getElementById('rec_or').textContent = this.getAttribute('data-ref');
-                document.getElementById('rec_amount').textContent = this.getAttribute('data-amount');
-                document.getElementById('rec_date').textContent = this.getAttribute('data-date');
-                document.getElementById('rec_method').textContent = this.getAttribute('data-method');
-                document.getElementById('rec_owner').textContent = this.getAttribute('data-owner');
-                document.getElementById('rec_business').textContent = this.getAttribute('data-business');
-                receiptModal.show();
-            });
-        });
-
-        /* ============================================
-           FILE VIEW MODAL
-        ============================================ */
         const fileViewModalElement = new bootstrap.Modal(document.getElementById('fileViewModal'));
         const filePreviewContainer = document.getElementById('filePreviewContainer');
         const fileViewModalTitle = document.getElementById('fileViewModalTitle');
@@ -2088,6 +1787,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
                 const filePath = this.getAttribute('data-file');
                 const titleText = this.getAttribute('data-title') || 'Attachment Preview';
                 const fileExt = filePath.split('.').pop().toLowerCase();
+                const isHtmlPermit = filePath.includes('view_permit.php');
 
                 fileViewModalTitle.innerHTML = `<i class="fa-solid fa-file-lines me-2"></i> ${titleText}`;
                 downloadFileBtn.setAttribute('href', filePath);
@@ -2095,28 +1795,20 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
 
                 if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt)) {
                     imageZoomControls.classList.remove('d-none');
-                    filePreviewContainer.innerHTML = `
-                        <div class="zoom-image-container">
-                            <img src="${filePath}" id="previewImg" class="preview-image-zoomable" alt="Supporting Attachment" title="Click to Zoom In / Zoom Out">
-                        </div>
-                    `;
+                    filePreviewContainer.innerHTML = `<div class="zoom-image-container"><img src="${filePath}" id="previewImg" class="preview-image-zoomable" alt="Supporting Attachment"></div>`;
                     const previewImg = document.getElementById('previewImg');
-                    previewImg.addEventListener('click', function() {
-                        this.classList.toggle('is-zoomed');
-                        currentScale = this.classList.contains('is-zoomed') ? 2 : 1;
-                    });
-                } else if (fileExt === 'pdf') {
+                    if (previewImg) {
+                        previewImg.addEventListener('click', function() {
+                            this.classList.toggle('is-zoomed');
+                            currentScale = this.classList.contains('is-zoomed') ? 2 : 1;
+                        });
+                    }
+                } else if (fileExt === 'pdf' || isHtmlPermit) {
                     imageZoomControls.classList.add('d-none');
-                    filePreviewContainer.innerHTML = `<iframe src="${filePath}" style="width:100%; height:70vh; border:none; border-radius:12px;"></iframe>`;
+                    filePreviewContainer.innerHTML = `<iframe src="${filePath}" style="width:100%; height:60vh; border:none; border-radius:12px; background:#fff;"></iframe>`;
                 } else {
                     imageZoomControls.classList.add('d-none');
-                    filePreviewContainer.innerHTML = `
-                        <div class="p-5 text-center text-dark">
-                            <i class="fa-solid fa-file-lines display-3 text-secondary mb-3"></i>
-                            <h5>Preview not supported for this file type</h5>
-                            <a href="${filePath}" target="_blank" class="btn btn-danger mt-2"><i class="fa-solid fa-download me-1"></i> Download File</a>
-                        </div>
-                    `;
+                    filePreviewContainer.innerHTML = `<div class="p-5 text-center text-white"><i class="fa-solid fa-file-lines display-3 text-secondary mb-3"></i><h5>Preview not supported</h5><a href="${filePath}" target="_blank" class="btn btn-primary mt-2" style="background: var(--accent-blue); border: none;"><i class="fa-solid fa-download me-1"></i> Download File</a></div>`;
                 }
                 fileViewModalElement.show();
             });
@@ -2134,68 +1826,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE,
             const img = document.getElementById('previewImg');
             if (img) { currentScale = 1; img.classList.remove('is-zoomed'); img.style.transform = `scale(1)`; }
         });
-
-        /* ============================================
-           APPROVE MODAL
-        ============================================ */
-        const approveModalElement = new bootstrap.Modal(document.getElementById('globalApproveModal'));
-        document.querySelectorAll('.open-approve-modal').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const renewalId = this.getAttribute('data-id');
-                const rentalId = this.getAttribute('data-rental-id');
-                const business = this.getAttribute('data-business');
-                const expiry = this.getAttribute('data-expiry');
-
-                document.getElementById('modal_renewal_id').value = renewalId;
-                document.getElementById('modal_rental_id').value = rentalId;
-                document.getElementById('modal_business_name').textContent = business;
-                document.getElementById('modal_current_expiry').value = expiry;
-
-                approveModalElement.show();
-            });
-        });
-
-        /* ============================================
-           SEARCH MODAL
-        ============================================ */
-        const searchModalElement = document.getElementById('searchModal');
-        const modalSearchInput = document.getElementById('modalSearchInput');
-        const modalSearchResults = document.getElementById('modalSearchResults');
-
-        if (searchModalElement) {
-            searchModalElement.addEventListener('shown.bs.modal', function () {
-                modalSearchInput.focus();
-            });
-
-            let searchDebounce;
-            modalSearchInput.addEventListener('input', function() {
-                clearTimeout(searchDebounce);
-                let query = this.value.trim();
-                if (query.length < 2) {
-                    modalSearchResults.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: #64748b; font-size: 13px;">Type at least 2 characters to begin searching records...</div>`;
-                    return;
-                }
-                searchDebounce = setTimeout(() => {
-                    fetch('renewals_approval.php?ajax_action=search&q=' + encodeURIComponent(query))
-                        .then(res => res.text())
-                        .then(html => {
-                            modalSearchResults.innerHTML = html.trim() !== '' ? html : `<div style="text-align: center; padding: 30px; color: #64748b; font-size: 13px;">No matching results found.</div>`;
-                        });
-                }, 250);
-            });
-        }
-
-        /* ============================================
-           LOGOUT
-        ============================================ */
-        function confirmLogout() {
-            Swal.fire({
-                title: 'Logout', text: 'Are you sure you want to end your session?', icon: 'warning',
-                showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, Logout'
-            }).then((res) => { if (res.isConfirmed) document.getElementById('logoutForm').submit(); });
-        }
-        document.getElementById('profileLogoutBtn')?.addEventListener('click', (e) => { e.preventDefault(); confirmLogout(); });
+    });
     </script>
 </body>
 </html>
