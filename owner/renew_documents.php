@@ -171,10 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
         if (in_array($fileExtension, $allowedExtensions, true) && upload_content_ok($fileTmpPath, $fileExtension)) {
             $newFileName = 'renewal_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
             
-            // ✅ FIX: Gumamit ng absolute path at tamang error handling para sa Render
             $uploadFileDir = __DIR__ . '/../uploads/renewals/';
             if (!is_dir($uploadFileDir)) {
-                // Susubukang gumawa ng folder na may write permission
                 if (!@mkdir($uploadFileDir, 0775, true) && !is_dir($uploadFileDir)) {
                     $flashError = 'Server Error: Cannot create upload directory. Please contact support.';
                 }
@@ -281,7 +279,6 @@ $expiredDocs = [];
 $expiringDocs = [];
 if (tableExists($conn, 'documents')) {
     try {
-        // Expired na (lampas na sa current date)
         $expStmt = $conn->prepare("
             SELECT id, title, permit_expiry_date 
             FROM documents 
@@ -293,7 +290,6 @@ if (tableExists($conn, 'documents')) {
         $expStmt->execute([':uid' => $userId]);
         $expiredDocs = $expStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Malapit nang ma-expire (within 30 days)
         $expSoonStmt = $conn->prepare("
             SELECT id, title, permit_expiry_date 
             FROM documents 
@@ -1343,14 +1339,25 @@ if (tableExists($conn, 'notifications')) {
                                         <?php echo $expiryBadge; ?>
                                     </td>
                                     <td data-label="Attachment">
-                                        <?php if (!empty($row['supporting_file'])): ?>
+                                        <?php 
+                                        if (!empty($row['supporting_file'])): 
+                                            // ✅ CHECK KUNG EXISTING PA ANG FILE SA SERVER
+                                            $physicalPath = __DIR__ . '/../uploads/renewals/' . $row['supporting_file'];
+                                            if (file_exists($physicalPath)): 
+                                        ?>
                                             <button type="button" class="btn btn-sm btn-outline-primary open-view-file-modal" style="font-size:11px; border-radius:8px; padding:4px 10px; color:var(--accent-blue); border-color:var(--card-border);"
                                                     data-file="../uploads/renewals/<?php echo h($row['supporting_file']); ?>"
                                                     data-title="<?php echo h($row['document_type']); ?> - <?php echo h($bizName); ?>">
                                                 <i class="fa-solid fa-eye"></i> View File
                                             </button>
                                         <?php else: ?>
-                                            <span style="color:#94a3b8;">No File</span>
+                                            <!-- ✅ LALABAS ITO KUNG NABURA NA ANG FILE DAHIL SA RENDER RESTART -->
+                                            <span style="color:var(--danger); font-size:11px; font-style:italic;" title="Ang file na ito ay nabura na ng server (Render restart). Hindi na maaaring i-view.">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> File Missing
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php else: ?>
+                                            <span style="color:#94a3b8; font-size:11px; font-style:italic;">No File</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center" data-label="Status">
@@ -1753,7 +1760,7 @@ if (tableExists($conn, 'notifications')) {
 
                 if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt)) {
                     imageZoomControls.classList.remove('d-none');
-                    filePreviewContainer.innerHTML = `<div class="zoom-image-container"><img src="${filePath}" id="previewImg" class="preview-image-zoomable" alt="Supporting Attachment"></div>`;
+                    filePreviewContainer.innerHTML = `<div class="zoom-image-container"><img src="${filePath}" id="previewImg" class="preview-image-zoomable" alt="Supporting Attachment" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'p-5 text-center text-white\\'><i class=\\'fa-solid fa-file-circle-xmark display-3 mb-3\\'></i><h5>File Not Found</h5><p class=\\'text-muted\\'>The file was deleted by the server or the link is broken.</p></div>';"></div>`;
                     const previewImg = document.getElementById('previewImg');
                     if (previewImg) {
                         previewImg.addEventListener('click', function() {
