@@ -148,46 +148,16 @@ if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'search') {
     exit;
 }
 
-/* CERTIFICATE BUILDER */
-function getPermitTypeConfig($permitType) {
-    $types = [
-        'Business Permit' => [
-            'label' => "Business / Mayor's Permit (Santiago)",
-            'certTitle' => "Certificate of Business Permit &amp; Mayor's Clearance",
-            'office' => "Office of the City Mayor &bull; Business Permits &amp; Licensing Office",
-            'legalBasis' => "This certification is hereby granted pursuant to the Revenue Code and applicable municipal ordinances of the City of Santiago, certifying that the establishment named below has satisfactorily complied with the requirements for the operation of a business within the city's jurisdiction.",
-            'recordLabel' => 'Business / Establishment',
-            'clause' => "Must be conspicuously displayed at the business establishment premises at all times. Non-transferable. Subject to inspection and revocation for cause.",
-            'sig1Role' => 'City Treasurer',
-            'sig1Office' => 'Collections &amp; Revenue Office',
-            'sig2Role' => 'City Mayor / BPLO Head',
-        ],
-        'Lease Clearance Certificate' => [
-            'label' => 'Lease Clearance Certificate',
-            'certTitle' => 'Certificate of Lease Clearance',
-            'office' => 'Office of the City Assessor &bull; Zoning &amp; Rental Compliance Division',
-            'legalBasis' => "This certification is hereby issued pursuant to the municipal rental registration and zoning ordinances of the City of Santiago, confirming that the lease or rental arrangement for the property named below has been registered with, and reviewed by, this Office for compliance with the applicable zoning classification and rental documentation requirements.",
-            'recordLabel' => 'Leased Property / Unit',
-            'clause' => "This clearance covers only the registration and zoning compliance of the leased premises. It does not, by itself, authorize business operations and does not substitute for a separate business permit where required. Non-transferable.",
-            'sig1Role' => 'Zoning Administrator',
-            'sig1Office' => "City Assessor's Office",
-            'sig2Role' => 'City Mayor',
-        ],
-        'Occupancy Compliance Permit' => [
-            'label' => 'Occupancy Compliance Permit',
-            'certTitle' => 'Certificate of Occupancy Compliance',
-            'office' => 'Office of the City Engineer &bull; Office of the Building Official',
-            'legalBasis' => "This certification is hereby issued pursuant to the National Building Code and applicable municipal ordinances of the City of Santiago, confirming that the premises named below has undergone the required inspection and has satisfactorily complied with structural, safety, and occupancy standards for its declared use.",
-            'recordLabel' => 'Property / Premises',
-            'clause' => "Must be conspicuously displayed at the premises. Subject to periodic re-inspection. Any structural alteration, change of use, or change of occupancy at the premises requires re-certification.",
-            'sig1Role' => 'City Engineer / Building Official',
-            'sig1Office' => 'Office of the Building Official',
-            'sig2Role' => 'City Mayor',
-        ],
-    ];
-    return $types[$permitType] ?? $types['Business Permit'];
+function getPermitBadgeClass($classification) {
+    $c = strtolower($classification);
+    if (strpos($c, 'lease') !== false) return 'lease';
+    if (strpos($c, 'occupancy') !== false) return 'occ';
+    return 'biz';
 }
-function buildPermitCertificateHtml(array $d) { return ''; }
+function getPermitTypeLabelFromPrefix($prefix) {
+    $map = ['BP'=>'Business Permit','SP'=>'Sanitary Permit','FSIC'=>'Fire Safety','BC'=>'Barangay Clearance','HC'=>'Health Cert','LC'=>'Lease Contract','LCC'=>'Lease Clearance','OCP'=>'Occupancy','PERMIT'=>'Permit'];
+    return $map[$prefix] ?? 'Permit';
+}
 
 /* FILE SETUP */
 $rootUploadDir = dirname(__DIR__) . '/uploads';
@@ -217,17 +187,6 @@ foreach ($dbDocuments as $d) {
         $docKey = ($d['title'] ?? '') . '_' . ($d['file_name'] ?? '');
         if (!isset($seenDocs[$docKey])) { $seenDocs[$docKey] = true; $documents[] = $d; }
     }
-}
-
-function getPermitBadgeClass($classification) {
-    $c = strtolower($classification);
-    if (strpos($c, 'lease') !== false) return 'lease';
-    if (strpos($c, 'occupancy') !== false) return 'occ';
-    return 'biz';
-}
-function getPermitTypeLabelFromPrefix($prefix) {
-    $map = ['BP'=>'Business Permit','SP'=>'Sanitary Permit','FSIC'=>'Fire Safety','BC'=>'Barangay Clearance','HC'=>'Health Cert','LC'=>'Lease Contract','LCC'=>'Lease Clearance','OCP'=>'Occupancy','PERMIT'=>'Permit'];
-    return $map[$prefix] ?? 'Permit';
 }
 
 /* UPDATE VALIDITY CALCULATION */
@@ -394,7 +353,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
         body.drawer-open { overflow: hidden !important; }
         body.drawer-open #aiAssistantWrapper { display: none !important; }
 
@@ -418,7 +376,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
         .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: #ffffff; border-bottom: 1px solid var(--card-border); gap: 14px; flex-wrap: nowrap; min-height: 62px; }
         .navbar-left { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -514,15 +471,12 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
         .table-custom td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
         .table-custom tr:hover { background: #fef2f2; }
 
-        /* Dynamic Row Highlights */
         .table-custom tr.row-expired { background-color: #fef2f2; }
         .table-custom tr.row-expiring { background-color: #fffbeb; }
         .table-custom tr.row-expired:hover { background-color: #fee2e2; }
         .table-custom tr.row-expiring:hover { background-color: #fef3c7; }
 
-        /* Status Badges */
         .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; display: inline-block; white-space: nowrap; }
-        
         .status-badge.active, .status-badge.valid { background: #d1fae5; color: #059669; }
         .status-badge.permit { background: var(--blue-soft); color: var(--accent-blue); }
         .status-badge.biz { background: #dcfce7; color: #000000; }
@@ -532,13 +486,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
         .status-badge.expired { background: #fee2e2; color: #b91c1c; }
         .status-badge.unknown { background: #f1f5f9; color: #64748b; }
 
-        /* Days remaining text */
         .days-left-text { display: block; font-size: 10.5px; font-weight: 700; margin-top: 4px; }
         .days-left-text.text-danger { color: var(--danger); }
         .days-left-text.text-warning { color: #d97706; }
         .days-left-text.text-success { color: #059669; }
 
-        /* Alert Banners */
         .alert-banner { padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; border: 1px solid transparent; }
         .alert-banner.banner-danger { background-color: #fef2f2; border-color: #fecaca; color: #991b1b; }
         .alert-banner.banner-warning { background-color: #fffbeb; border-color: #fde68a; color: #92400e; }
@@ -618,7 +570,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            /* FIX: Mobile Dropdown CSS Specificity */
             .nav-dropdown { position: static !important; left: auto !important; right: auto !important; transform: none !important; opacity: 1 !important; visibility: visible !important; box-shadow: none !important; border: none !important; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.2s ease; padding: 0 0 0 16px; background: #f8fafc; margin-top: 4px; border-radius: 10px; min-width: 0; width: 100% !important; }
             .nav-item.open > .nav-dropdown,
             .nav-item.align-right.open > .nav-dropdown { max-height: 1000px !important; padding: 8px 0 8px 16px !important; }
@@ -627,7 +578,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1999; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
             .sidebar-overlay.active { display: block; opacity: 1; pointer-events: auto; }
 
-            /* Notification dropdown mobile-friendly */
             .notification-dropdown { position: fixed; top: 70px; left: 12px; right: 12px; width: auto !important; max-width: none; transform: translateY(-10px) scale(0.98); }
             .notification-dropdown.show { transform: translateY(0) scale(1); }
         }
@@ -644,7 +594,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .panel-body { padding: 14px; }
             .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
 
-            /* TABLE -> CARD VIEW */
             .table-responsive { overflow: visible; }
             .table-custom { display: block; }
             .table-custom thead { display: none; }
@@ -692,13 +641,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .table-custom td > * { text-align: right; }
             .table-custom td strong { font-size: 13.5px; word-break: break-word; }
             
-            /* Mobile action button */
             .table-custom td:last-child .btn-secondary-custom { width: 100%; padding: 10px 14px; font-size: 13px; min-height: 44px; justify-content: center; }
             
             .empty-state { padding: 30px 16px; font-size: 12.5px; }
             .empty-state i { font-size: 30px; }
 
-            /* AI CHAT responsive */
             #aiAssistantWrapper { bottom: calc(18px + var(--safe-bottom)); right: calc(18px + var(--safe-right)); }
             #aiToggleBtn { width: 52px; height: 52px; font-size: 20px; }
             #aiChatWindow {
@@ -711,7 +658,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
                 border-radius: 16px;
             }
 
-            /* Permit Preview Modal */
             .permit-preview-overlay { padding: 0; align-items: flex-end; }
             .permit-preview-content { height: 92vh; border-radius: 20px 20px 0 0; max-width: 100%; }
             .permit-preview-header { padding: 12px 16px; }
@@ -720,7 +666,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             .permit-preview-header .btn-secondary-custom { flex: 1; justify-content: center; }
             .permit-preview-body { padding: 10px; }
 
-            /* Search modal */
             .search-modal-overlay { padding: 6vh 12px 12px; }
             .search-modal-content { border-radius: 16px; }
             .search-modal-header { padding: 14px 16px; }
@@ -746,7 +691,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
             #aiChatInput { font-size: 16px !important; }
         }
 
-        /* Touch-friendly */
         @media (hover: none) and (pointer: coarse) {
             .nav-link, .nav-dropdown a, .btn-secondary-custom, .profile-dropdown .dropdown-item, .notif-drop-item {
                 -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
@@ -1029,7 +973,14 @@ unset($_SESSION['flash_message'], $_SESSION['flash_text']);
                             <?php else: ?>
                                 <?php foreach ($approvedPermits as $permit):
                                     $fPath = !empty($permit['owner_folder_path']) ? $permit['owner_folder_path'] : ('user_' . $userId);
-                                    $permitUrl = '../uploads/' . $fPath . '/' . $permit['stored_name'];
+                                    
+                                    // ✅ UPDATE: Kung Permit, gamitin ang view_permit.php. Kung file upload, sa uploads folder.
+                                    if (($permit['type'] ?? '') === 'Permit' || strpos(strtolower($permit['title'] ?? ''), 'permit') !== false) {
+                                        $permitUrl = 'view_permit.php?id=' . $permit['id'];
+                                    } else {
+                                        $permitUrl = '../uploads/' . $fPath . '/' . $permit['stored_name'];
+                                    }
+                                    
                                     $validityLabels = ['valid' => 'Active', 'expiring' => 'Expiring Soon', 'expired' => 'Expired', 'unknown' => 'N/A'];
                                     
                                     $rowClass = '';

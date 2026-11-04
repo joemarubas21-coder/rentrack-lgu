@@ -1,0 +1,31 @@
+<?php
+require_once __DIR__ . '/../config/session.php'; app_session_start();
+require_once("../config/db.php");
+require_once("includes/auth.php");
+
+$userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+
+if ($userId === 0) {
+    header('Location: login.php');
+    exit;
+}
+
+$id = (int)($_GET['id'] ?? 0);
+
+if ($id > 0) {
+    // Siguraduhing ang permit ay pag-aari ng naka-login na owner
+    $stmt = $conn->prepare("SELECT permit_html FROM documents WHERE id = :id AND user_id = :uid AND type = 'Permit'");
+    $stmt->execute([':id' => $id, ':uid' => $userId]);
+    $html = $stmt->fetchColumn();
+
+    if ($html) {
+        // Ipapakita ang HTML certificate nang direkta
+        echo $html;
+        exit;
+    }
+}
+
+// Fallback kung wala sa DB
+http_response_code(404);
+echo "<h1>404 Not Found</h1><p>Permit not found or you do not have permission to view it.</p>";
+?>

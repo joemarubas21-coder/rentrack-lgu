@@ -492,15 +492,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $doc = $stmt->fetch(PDO::FETCH_ASSOC);
 
                     if ($doc) {
-                        $filePath = dirname(__DIR__) . '/uploads/' . $doc['owner_folder_path'] . '/' . $doc['stored_name'];
-                        if (file_exists($filePath)) {
+                        // I-try pa ring i-delete ang file kung meron man (para sa mga uploaded docs)
+                        $filePath = dirname(__DIR__) . '/uploads/' . ($doc['owner_folder_path'] ?? '') . '/' . ($doc['stored_name'] ?? '');
+                        if (!empty($doc['stored_name']) && file_exists($filePath)) {
                             @unlink($filePath);
                         }
 
                         $delStmt = $conn->prepare("DELETE FROM documents WHERE id = :id");
                         $delStmt->execute([':id' => $docId]);
 
-                        $_SESSION['success_message'] = 'Document or permit deleted successfully from Supabase database.';
+                        $_SESSION['success_message'] = 'Document or permit deleted successfully from database.';
                     } else {
                         $_SESSION['error_message'] = 'Document record not found in database.';
                     }
@@ -518,14 +519,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $allDocs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 foreach ($allDocs as $doc) {
-                    $filePath = dirname(__DIR__) . '/uploads/' . $doc['owner_folder_path'] . '/' . $doc['stored_name'];
-                    if (file_exists($filePath)) {
+                    $filePath = dirname(__DIR__) . '/uploads/' . ($doc['owner_folder_path'] ?? '') . '/' . ($doc['stored_name'] ?? '');
+                    if (!empty($doc['stored_name']) && file_exists($filePath)) {
                         @unlink($filePath);
                     }
                 }
 
                 $conn->query("DELETE FROM documents");
-                $_SESSION['success_message'] = 'All documents and permits have been cleared from Supabase.';
+                $_SESSION['success_message'] = 'All documents and permits have been cleared from database.';
             } catch (Exception $e) {
                 $_SESSION['error_message'] = 'Error clearing documents: ' . safe_error($e);
             }
@@ -569,15 +570,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $displayPermitType = ($permitType === 'Others' && !empty($customPermitType)) ? $customPermitType : $permitType;
 
-                $rootUploadDir = dirname(__DIR__) . '/uploads';
-                $ownerUploadDir = $rootUploadDir . '/' . $folderPath;
-                if (!is_dir($ownerUploadDir)) {
-                    @mkdir($ownerUploadDir, 0755, true);
-                }
-
                 $permitTitle = $displayPermitType . ' - ' . $bizName;
-                $storedName = 'permit_' . uniqid('', true) . '.html';
-                $targetPath = $ownerUploadDir . '/' . $storedName;
+                $storedName = 'permit_' . uniqid('', true) . '.html'; // Retain for DB record
 
                 $securityHash = hash('sha256', $rentalId . $bizName . time());
                 $issueDate = date('F d, Y');
@@ -616,30 +610,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'permitNo'            => $generatedPermitNo,
                 ]);
 
-                file_put_contents($targetPath, $permitHtml);
-
+                // HINDI NA GAGAMITIN ANG file_put_contents() DAHIL SA RENDER RESTART ISSUE
+                
+                // I-SAVE ANG HTML SA DATABASE
                 $insStmt = $conn->prepare("
                     INSERT INTO documents (
                         user_id, rental_id, title, type, notes, file_name, stored_name, owner_folder_path,
-                        business_permit_no, permit_expiry_date, permit_status, uploaded_at
+                        business_permit_no, permit_expiry_date, permit_status, uploaded_at, permit_html
                     )
                     VALUES (
                         :uid, :rid, :title, :type, :notes, :fname, :sname, :fpath,
-                        :bpno, :pexp, :pstat, NOW()
+                        :bpno, :pexp, :pstat, NOW(), :permit_html
                     )
                 ");
                 $insStmt->execute([
-                    ':uid'   => $ownerId,
-                    ':rid'   => $rentalId,
-                    ':title' => $permitTitle,
-                    ':type'  => 'Permit',
-                    ':notes' => 'Valid until: ' . $validUntil . '. Official HTML Certificate.',
-                    ':fname' => $displayPermitType . '_' . preg_replace('/[^a-zA-Z0-9]/', '_', $bizName) . '.html',
-                    ':sname' => $storedName,
-                    ':fpath' => $folderPath,
-                    ':bpno'  => $generatedPermitNo,
-                    ':pexp'  => $validUntil,
-                    ':pstat' => 'Active'
+                    ':uid'         => $ownerId,
+                    ':rid'         => $rentalId,
+                    ':title'       => $permitTitle,
+                    ':type'        => 'Permit',
+                    ':notes'       => 'Valid until: ' . $validUntil . '. Official HTML Certificate.',
+                    ':fname'       => $displayPermitType . '_' . preg_replace('/[^a-zA-Z0-9]/', '_', $bizName) . '.html',
+                    ':sname'       => $storedName,
+                    ':fpath'       => $folderPath,
+                    ':bpno'        => $generatedPermitNo,
+                    ':pexp'        => $validUntil,
+                    ':pstat'       => 'Active',
+                    ':permit_html' => $permitHtml
                 ]);
 
                 if (tableExists($conn, 'notifications') && $ownerId) {
@@ -771,6 +767,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document_file'])) {
                             $permitStatus = 'Active';
                         }
 
+                        // Para sa mga file uploads, nananatili ang normal INSERT (walang permit_html)
                         $insStmt = $conn->prepare("
                             INSERT INTO documents (
                                 user_id, rental_id, title, type, notes, file_name, stored_name, owner_folder_path,
@@ -818,13 +815,12 @@ if (isset($_SESSION['error_message'])) {
     unset($_SESSION['error_message']);
 }
 
-// ✅ UPDATED: Status filter para gumana ang ?status=Expired mula sa dashboard
+// ✅ Status filter para gumana ang ?status=Expired mula sa dashboard
 $statusFilter = trim($_GET['status'] ?? '');
 
 $documents = [];
 try {
     if ($statusFilter === 'Expired') {
-        // Expired permits lang (permit_expiry_date < today)
         $docStmt = $conn->query("
             SELECT * FROM documents 
             WHERE permit_expiry_date IS NOT NULL 
@@ -832,7 +828,6 @@ try {
             ORDER BY permit_expiry_date ASC
         ");
     } elseif ($statusFilter === 'Expiring') {
-        // Malapit nang ma-expire (within 30 days)
         $docStmt = $conn->query("
             SELECT * FROM documents 
             WHERE permit_expiry_date IS NOT NULL 
@@ -841,7 +836,6 @@ try {
             ORDER BY permit_expiry_date ASC
         ");
     } else {
-        // Default: lahat ng documents
         $docStmt = $conn->query("SELECT * FROM documents ORDER BY uploaded_at DESC");
     }
     $documents = $docStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -878,7 +872,6 @@ foreach ($documents as $doc) {
 $verifiedRentalsCount = count($verifiedRentals);
 $activeTabOnLoad = ($successMessage !== '') ? 'tab-records' : 'tab-issue';
 
-// ✅ UPDATED: Kung naka-filter, force open ang Records tab
 if (!empty($statusFilter)) {
     $activeTabOnLoad = 'tab-records';
 }
@@ -1399,7 +1392,7 @@ $permitTypeOptions = [
         .alert-banner h4 { margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: #0f172a; }
         .alert-banner p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #475569; }
 
-        /* ✅ UPDATED: STATS STRIP - 4 columns on desktop */
+        /* STATS STRIP */
         .stats-strip { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
         @media(min-width: 576px) { .stats-strip { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
         @media(min-width: 992px) { .stats-strip { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
@@ -2046,7 +2039,6 @@ $permitTypeOptions = [
                     <div class="alert danger"><i class="fa-regular fa-circle-xmark"></i> <?php echo htmlspecialchars($errorMessage); ?></div>
                 <?php endif; ?>
 
-                <!-- ALERT BANNERS (STAFF SIDE) - Minimalist Style -->
                 <?php if ($expiredDocsCount > 0): ?>
                     <div class="alert-banner">
                         <i class="fa-solid fa-circle-exclamation"></i>
@@ -2067,7 +2059,6 @@ $permitTypeOptions = [
                     </div>
                 <?php endif; ?>
 
-                <!-- ✅ UPDATED: STATS STRIP - May clickable Expired chip -->
                 <div class="stats-strip">
                     <div class="stat-chip">
                         <div class="stat-icon"><i class="fa-solid fa-file-shield"></i></div>
@@ -2090,7 +2081,6 @@ $permitTypeOptions = [
                             <div class="stat-lbl">Verified Rentals</div>
                         </div>
                     </div>
-                    <!-- ✅ BAGO: Clickable expired stat -->
                     <a href="documents.php?status=Expired" class="stat-chip" style="text-decoration: none; <?php echo $expiredDocsCount > 0 ? 'border-color: #fecaca; background: #fef2f2;' : ''; ?>">
                         <div class="stat-icon" style="<?php echo $expiredDocsCount > 0 ? 'background: #fee2e2; color: #dc2626;' : ''; ?>">
                             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -2235,7 +2225,6 @@ $permitTypeOptions = [
                     </div>
 
                     <div class="tab-panel<?php echo $activeTabOnLoad === 'tab-records' ? ' active' : ''; ?>" id="tab-records">
-                        <!-- ✅ UPDATED: Filter indicator banner -->
                         <?php if (!empty($statusFilter)): ?>
                             <div style="padding: 12px 16px; background: <?php echo $statusFilter === 'Expired' ? '#fef2f2' : '#fffbeb'; ?>; border: 1px solid <?php echo $statusFilter === 'Expired' ? '#fecaca' : '#fde68a'; ?>; border-radius: 10px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                 <span style="font-size: 13px; color: <?php echo $statusFilter === 'Expired' ? '#991b1b' : '#92400e'; ?>; font-weight: 600;">
@@ -2329,12 +2318,10 @@ $permitTypeOptions = [
                                                             <?php echo date('M d, Y', strtotime($doc['permit_expiry_date'])); ?>
                                                         </span>
                                                         <br>
-                                                        <!-- Dynamic Badge Color -->
                                                         <span class="badge" style="color: <?php echo $expiryStatusColor; ?> !important; border-color: <?php echo $expiryStatusColor; ?> !important;">
                                                             <?php echo $expiryStatusLabel; ?>
                                                         </span>
                                                         <?php if ($daysLeftText): ?>
-                                                            <!-- Dynamic Days Left Text Color -->
                                                             <br><small style="font-size: 10px; font-weight: 600; color: <?php echo $daysLeftColor; ?>;"><?php echo $daysLeftText; ?></small>
                                                         <?php endif; ?>
                                                     <?php else: ?>
@@ -2345,10 +2332,15 @@ $permitTypeOptions = [
                                                     <?php echo htmlspecialchars($doc['notes'] ?? '—'); ?>
                                                 </td>
                                                 <td data-label="Action">
-                                                    <?php if (!empty($doc['stored_name'])): ?>
+                                                    <?php if (!empty($doc['stored_name']) || !empty($doc['permit_html'])): ?>
                                                         <?php 
                                                             $folderPath = $doc['owner_folder_path'] ?? ('user_' . $staffId); 
-                                                            $docUrl = '../uploads/' . $folderPath . '/' . $doc['stored_name'];
+                                                            // ✅ FIX: Kung Permit, gamitin ang view_permit.php. Kung file upload, sa uploads folder.
+                                                            if (($doc['type'] ?? '') === 'Permit') {
+                                                                $docUrl = 'view_permit.php?id=' . $doc['id'];
+                                                            } else {
+                                                                $docUrl = '../uploads/' . $folderPath . '/' . $doc['stored_name'];
+                                                            }
                                                         ?>
                                                         <div style="display: flex; gap: 6px; align-items: center;">
                                                             <button type="button" class="btn-secondary view-doc-btn" style="width: 32px; height: 32px; padding: 0; justify-content: center; border-radius: 6px; background: #f1f5f9; border-color: #e2e8f0; color: #64748b; cursor: pointer;" title="View"
