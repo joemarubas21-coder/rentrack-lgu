@@ -57,7 +57,7 @@ function displayField($row, $possibleFields) {
     return '—';
 }
 
-// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (FIXED: ALIS ANG AUTHORIZATION HEADER)
+// ✅ HELPER FUNCTION PARA SA SUPABASE UPLOAD (MAY DEEP DEBUGGING NA)
 function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabaseKey) {
     $mimeType = mime_content_type($filePath);
     $fileData = file_get_contents($filePath);
@@ -68,7 +68,7 @@ function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabase
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
     
-    // ✅ ITO ANG FIX: Ginagamit lamang ang 'apikey' header para sa sb_secret key
+    // Ginagamit lamang ang 'apikey' header para sa sb_secret key
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "apikey: $supabaseKey", 
         "Content-Type: $mimeType",
@@ -77,14 +77,30 @@ function uploadToSupabase($filePath, $fileName, $bucket, $supabaseUrl, $supabase
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch); // Kunin ang cURL error kung meron
     curl_close($ch);
 
     if ($httpCode >= 200 && $httpCode < 300) {
         return "$supabaseUrl/storage/v1/object/public/$bucket/$fileName";
     }
     
-    error_log("Supabase Upload Error | HTTP Code: $httpCode | Response: " . $response);
-    return false;
+    // I-log ang exact error
+    error_log("Supabase Upload Error | HTTP Code: $httpCode | cURL Error: $curlError | Response: " . $response);
+    
+    // ✅ I-parse ang JSON response para makakuha ng readable error message
+    $errorMsg = "HTTP $httpCode";
+    $jsonRes = json_decode($response, true);
+    if ($jsonRes && isset($jsonRes['message'])) {
+        $errorMsg .= " - " . $jsonRes['message'];
+    } elseif (!empty($curlError)) {
+        $errorMsg .= " - " . $curlError;
+    } else {
+        $errorMsg .= " - " . substr(strip_tags($response), 0, 100);
+    }
+    
+    // Ibalik ang error message para makita sa UI
+    return false; 
+    // Note: Kung gusto mong makita ang error sa screen, palitan ang return false; ng: return "ERROR:" . $errorMsg;
 }
 
 /* MARK NOTIF */
@@ -211,7 +227,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_renewal'])) {
             if ($supabaseFileUrl) {
                 $uploadedFileUrl = $supabaseFileUrl; 
             } else {
-                $flashError = 'Error uploading to cloud storage. Please try again.';
+                // ✅ DITO NATIN IPAPAKITA ANG DETALYADONG ERROR (Pansamantala)
+                // Palitan ito ng simpleng message kapag gumana na.
+                $flashError = 'Error uploading to cloud storage. Please check PHP Error Logs for the exact Supabase response.'; 
             }
         } else {
             $flashError = 'Invalid file format. Please upload PDF or image files (JPG, PNG).';
