@@ -10,8 +10,8 @@ if (!isset($_SESSION['regenerated'])) {
 require_once("../config/db.php");
 require_once("includes/auth.php");
 
-// ✅ SUPABASE CREDENTIALS (NAAYOS NA ANG URL - DALAWANG Q NA)
-$supabaseUrl = 'https://rtjphvbrbaqqftkyjqkj.supabase.co'; 
+// ✅ SUPABASE CREDENTIALS (TAMA NA ANG URL AT ENV VAR NA ANG KEY)
+$supabaseUrl = 'https://rtjphvbrbaqqtfkyjqkj.supabase.co';
 $supabaseKey = getenv('SUPABASE_SECRET_KEY'); // Kukunin na mula sa Render Environment Variable
 $supabaseBucket = 'renewals';
 
