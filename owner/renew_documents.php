@@ -262,6 +262,38 @@ try {
     $rentals = $rStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/* ✅ BAGO: KUNIN ANG MGA EXPIRED AT EXPIRING DOCUMENTS/PARAMETERS PARA SA WARNING BANNER */
+$expiredDocs = [];
+$expiringDocs = [];
+if (tableExists($conn, 'documents')) {
+    try {
+        // Expired na (lampas na sa current date)
+        $expStmt = $conn->prepare("
+            SELECT id, title, permit_expiry_date 
+            FROM documents 
+            WHERE user_id = :uid 
+              AND permit_expiry_date IS NOT NULL 
+              AND permit_expiry_date < CURRENT_DATE
+            ORDER BY permit_expiry_date ASC
+        ");
+        $expStmt->execute([':uid' => $userId]);
+        $expiredDocs = $expStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Malapit nang ma-expire (within 30 days)
+        $expSoonStmt = $conn->prepare("
+            SELECT id, title, permit_expiry_date 
+            FROM documents 
+            WHERE user_id = :uid 
+              AND permit_expiry_date IS NOT NULL 
+              AND permit_expiry_date >= CURRENT_DATE
+              AND permit_expiry_date <= CURRENT_DATE + INTERVAL '30 days'
+            ORDER BY permit_expiry_date ASC
+        ");
+        $expSoonStmt->execute([':uid' => $userId]);
+        $expiringDocs = $expSoonStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) { error_log('Expiry fetch error: ' . $e->getMessage()); }
+}
+
 /* Renewals */
 $renewals = [];
 $renStmt = $conn->prepare("
@@ -337,7 +369,6 @@ if (tableExists($conn, 'notifications')) {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 20px; }
 
-        /* FIX: Tinanggal ang touch-action: none para gumana ang clicks sa iOS */
         body.drawer-open { overflow: hidden !important; }
         body.drawer-open #aiAssistantWrapper { display: none !important; }
 
@@ -381,7 +412,7 @@ if (tableExists($conn, 'notifications')) {
             .oh-sub { grid-area: sub; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
 
-        /* STICKY HEADER - FIX: Z-Index itinaas sa 1000 */
+        /* STICKY HEADER */
         .sticky-header { position: sticky; top: 0; z-index: 1000; background: #ffffff; }
         .top-navbar {
             display: flex; align-items: center; justify-content: space-between;
@@ -551,6 +582,18 @@ if (tableExists($conn, 'notifications')) {
         }
         .hero-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 800; color: #ffffff; margin: 0; }
         .hero-card p { color: #fee2e2; font-size: 13.5px; margin-top: 4px; margin-bottom: 0; }
+
+        /* ✅ BAGO: STYLES PARA SA WARNING BANNERS */
+        .alert-banner {
+            padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 14px; border: 1px solid transparent;
+        }
+        .alert-banner.banner-danger { background-color: #fef2f2; border-color: #fecaca; color: #991b1b; border-left: 5px solid #dc2626; }
+        .alert-banner.banner-warning { background-color: #fffbeb; border-color: #fde68a; color: #92400e; border-left: 5px solid #d97706; }
+        .alert-banner i { font-size: 24px; margin-top: 2px; flex-shrink: 0; }
+        .alert-banner h4 { margin: 0 0 4px 0; font-size: 15px; font-weight: 800; }
+        .alert-banner p { margin: 0; font-size: 13px; line-height: 1.5; opacity: 0.9; }
+        .alert-banner ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 12.5px; }
+        .alert-banner ul li { margin-bottom: 4px; }
 
         /* PANELS */
         .panel {
@@ -727,7 +770,6 @@ if (tableExists($conn, 'notifications')) {
             .nav-link .chevron { margin-left: auto; font-size: 11px; }
             .nav-link .nav-ico { font-size: 15px; width: 18px; }
 
-            /* FIX: Mobile Dropdown CSS Specificity */
             .nav-dropdown {
                 position: static !important; left: auto !important; right: auto !important;
                 transform: none !important; opacity: 1 !important; visibility: visible !important;
@@ -759,7 +801,6 @@ if (tableExists($conn, 'notifications')) {
                 pointer-events: auto; 
             }
 
-            /* Notification dropdown mobile-friendly */
             .notification-dropdown {
                 position: fixed;
                 top: 70px;
@@ -784,7 +825,6 @@ if (tableExists($conn, 'notifications')) {
             .panel-body { padding: 14px; }
             .dashboard-footer { flex-direction: column; text-align: center; gap: 6px; font-size: 10.5px; }
 
-            /* TABLE -> CARD VIEW */
             .table-responsive { overflow: visible; }
             .table { display: block; }
             .table thead { display: none; }
@@ -833,7 +873,6 @@ if (tableExists($conn, 'notifications')) {
             .table td strong { font-size: 13.5px; word-break: break-word; }
             .table td .btn { width: 100%; padding: 10px 14px; font-size: 13px; min-height: 44px; justify-content: center; }
             
-            /* AI CHAT responsive */
             #aiAssistantWrapper {
                 bottom: calc(18px + var(--safe-bottom));
                 right: calc(18px + var(--safe-right));
@@ -849,13 +888,11 @@ if (tableExists($conn, 'notifications')) {
                 border-radius: 16px;
             }
 
-            /* Modals */
             .modal-dialog { margin: 10px auto; }
             .modal-xl { max-width: calc(100vw - 20px); }
             .modal-content { border-radius: 16px; }
             .zoom-image-container { max-height: 60vh; }
 
-            /* Search modal */
             .search-modal-overlay { padding: 6vh 12px 12px; }
             .search-modal-content { border-radius: 16px; }
             .search-modal-header { padding: 14px 16px; }
@@ -880,7 +917,6 @@ if (tableExists($conn, 'notifications')) {
             #aiChatInput { font-size: 16px !important; }
         }
 
-        /* Touch-friendly */
         @media (hover: none) and (pointer: coarse) {
             .nav-link, .nav-dropdown a, .btn-primary-custom, .profile-dropdown .dropdown-item, .notif-drop-item {
                 -webkit-tap-highlight-color: rgba(220, 38, 38, 0.15);
@@ -1109,6 +1145,41 @@ if (tableExists($conn, 'notifications')) {
                 </div>
             <?php endif; ?>
 
+            <!-- ✅ BAGO: WARNING BANNERS PARA SA EXPIRED AT EXPIRING DOCUMENTS -->
+            <?php if (!empty($expiredDocs) || !empty($expiringDocs)): ?>
+                <div class="alert-banner-container mb-4">
+                    <?php if (!empty($expiredDocs)): ?>
+                        <div class="alert-banner banner-danger">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <div>
+                                <h4>Mayroon kang <?php echo count($expiredDocs); ?> Expired na Permit!</h4>
+                                <p>Ang mga sumusunod na permit ay lampas na sa validity date. Paki-renew ito agad para maiwasan ang multa.</p>
+                                <ul>
+                                    <?php foreach ($expiredDocs as $ed): ?>
+                                        <li><strong><?php echo h($ed['title']); ?></strong> (Expired noong <?php echo date('M d, Y', strtotime($ed['permit_expiry_date'])); ?>)</li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($expiringDocs)): ?>
+                        <div class="alert-banner banner-warning mt-3">
+                            <i class="fa-solid fa-clock"></i>
+                            <div>
+                                <h4>Malapit nang ma-expire ang <?php echo count($expiringDocs); ?> permit(s)</h4>
+                                <p>Ito ay ma-expire sa loob ng 30 araw. Maari mo nang i-renew ngayon para hindi maabala.</p>
+                                <ul>
+                                    <?php foreach ($expiringDocs as $exd): ?>
+                                        <li><strong><?php echo h($exd['title']); ?></strong> (Valid until <?php echo date('M d, Y', strtotime($exd['permit_expiry_date'])); ?>)</li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <!-- FORM PANEL -->
             <div class="panel">
                 <div class="panel-header">
@@ -1210,18 +1281,23 @@ if (tableExists($conn, 'notifications')) {
                                     }
 
                                     $linkedPermitNo = null;
+                                    $linkedPermitId = null;
                                     if ($st === 'approved' && $hasDocuments && $hasPermitNoCol) {
                                         try {
                                             $doctypeKeyword = str_replace(' Renewal', '', $row['document_type']);
                                             $permitLookupStmt = $conn->prepare("
-                                                SELECT business_permit_no FROM documents 
+                                                SELECT id, business_permit_no FROM documents 
                                                 WHERE user_id = :uid AND rental_id = :rid 
                                                   AND business_permit_no IS NOT NULL 
                                                   AND title ILIKE :doctype
                                                 ORDER BY uploaded_at DESC LIMIT 1
                                             ");
                                             $permitLookupStmt->execute([':uid' => $userId, ':rid' => $row['rental_id'], ':doctype' => '%' . $doctypeKeyword . '%']);
-                                            $linkedPermitNo = $permitLookupStmt->fetchColumn();
+                                            $linkedPermit = $permitLookupStmt->fetch(PDO::FETCH_ASSOC);
+                                            if ($linkedPermit) {
+                                                $linkedPermitNo = $linkedPermit['business_permit_no'];
+                                                $linkedPermitId = $linkedPermit['id'];
+                                            }
                                         } catch (PDOException $e) { $linkedPermitNo = null; }
                                     }
                                 ?>
@@ -1235,6 +1311,15 @@ if (tableExists($conn, 'notifications')) {
                                     <td data-label="Permit No.">
                                         <?php if ($linkedPermitNo): ?>
                                             <span style="font-family:monospace; font-weight:700; color:var(--accent-blue-dark); background:var(--blue-soft); padding:3px 10px; border-radius:6px; font-size:11.5px; display:inline-block;"><?php echo h($linkedPermitNo); ?></span>
+                                            <?php if ($linkedPermitId): ?>
+                                                <br>
+                                                <button type="button" class="btn btn-sm text-primary p-0 mt-1 open-view-file-modal" 
+                                                        style="font-size:10.5px; text-decoration:none; color:var(--accent-blue) !important;"
+                                                        data-file="view_permit.php?id=<?php echo $linkedPermitId; ?>" 
+                                                        data-title="Official Permit - <?php echo h($linkedPermitNo); ?>">
+                                                    <i class="fa-solid fa-eye"></i> View Official Permit
+                                                </button>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span style="color:#94a3b8; font-style:italic; font-size:11px;">—</span>
                                         <?php endif; ?>
@@ -1646,6 +1731,7 @@ if (tableExists($conn, 'notifications')) {
                 const filePath = this.getAttribute('data-file');
                 const titleText = this.getAttribute('data-title') || 'Attachment Preview';
                 const fileExt = filePath.split('.').pop().toLowerCase();
+                const isHtmlPermit = filePath.includes('view_permit.php');
 
                 fileViewModalTitle.innerHTML = `<i class="fa-solid fa-file-lines me-2"></i> ${titleText}`;
                 downloadFileBtn.setAttribute('href', filePath);
@@ -1661,7 +1747,7 @@ if (tableExists($conn, 'notifications')) {
                             currentScale = this.classList.contains('is-zoomed') ? 2 : 1;
                         });
                     }
-                } else if (fileExt === 'pdf') {
+                } else if (fileExt === 'pdf' || isHtmlPermit) {
                     imageZoomControls.classList.add('d-none');
                     filePreviewContainer.innerHTML = `<iframe src="${filePath}" style="width:100%; height:60vh; border:none; border-radius:12px; background:#fff;"></iframe>`;
                 } else {

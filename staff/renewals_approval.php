@@ -11,7 +11,7 @@ require_once("../config/db.php");
 require_once("includes/auth.php");
 
 /* =====================================================
-   HELPER FUNCTIONS FOR PDO & POSTGRESQL
+   HELPER FUNCTIONS FOR PDO & POSTGRESQL & HTML BUILDER
 ===================================================== */
 function tableExists($conn, $tableName) {
     try {
@@ -28,6 +28,263 @@ function columnExists($conn, $tableName, $columnName) {
         $stmt->execute([':t' => strtolower($tableName), ':c' => strtolower($columnName)]);
         return (bool)$stmt->fetchColumn();
     } catch (PDOException $e) { return false; }
+}
+
+/* PERMIT PREFIX MAP */
+function getPermitPrefixMap() {
+    return [
+        'Business Permit'                    => 'BP',
+        'Sanitary Permit'                    => 'SP',
+        'Fire Safety Inspection Certificate' => 'FSIC',
+        'Barangay Clearance'                 => 'BC',
+        'Health Certificates'                => 'HC',
+        'Lease Contract'                     => 'LC',
+        'Lease Clearance Certificate'        => 'LCC',
+        'Occupancy Compliance Permit'        => 'OCP',
+        'Others'                             => 'PERMIT',
+    ];
+}
+
+/* PERMIT TYPE CONFIGURATION */
+function getPermitTypeConfig($permitType) {
+    $types = [
+        'Business Permit' => [
+            'label'       => "Business / Mayor's Permit (Santiago)",
+            'certTitle'   => "Certificate of Business Permit &amp; Mayor's Clearance",
+            'office'      => "Office of the City Mayor &bull; Business Permits &amp; Licensing Office",
+            'legalBasis'  => "This certification is hereby granted pursuant to the Revenue Code and applicable municipal ordinances of the City of Santiago, certifying that the establishment named below has satisfactorily complied with the requirements for the operation of a business within the city's jurisdiction.",
+            'recordLabel' => 'Business / Establishment',
+            'clause'      => "Must be conspicuously displayed at the business establishment premises at all times. Non-transferable. Subject to inspection and revocation for cause.",
+            'sig1Role'    => 'City Treasurer',
+            'sig1Office'  => 'Collections &amp; Revenue Office',
+            'sig2Role'    => 'City Mayor / BPLO Head',
+        ],
+        'Sanitary Permit' => [
+            'label'       => 'Sanitary Permit',
+            'certTitle'   => 'Certificate of Sanitary Permit',
+            'office'      => 'City Health Office &bull; Sanitation Division',
+            'legalBasis'  => "This certification is hereby issued pursuant to the Sanitation Code of the Philippines and applicable municipal ordinances of the City of Santiago, confirming that the establishment named below has complied with the required sanitary standards and health regulations for its operations.",
+            'recordLabel' => 'Establishment / Business',
+            'clause'      => "Must be conspicuously displayed at the establishment. Subject to periodic sanitary inspection. Non-transferable. Revocable upon violation of the Sanitation Code.",
+            'sig1Role'    => 'City Health Officer',
+            'sig1Office'  => 'City Health Office',
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Fire Safety Inspection Certificate' => [
+            'label'       => 'Fire Safety Inspection Certificate (FSIC)',
+            'certTitle'   => 'Fire Safety Inspection Certificate',
+            'office'      => 'Bureau of Fire Protection &bull; City Fire Marshal Office',
+            'legalBasis'  => "This certification is hereby issued pursuant to the Fire Code of the Philippines (RA 9514) and its Implementing Rules and Regulations, confirming that the establishment named below has passed the required fire safety inspection and complies with fire safety standards.",
+            'recordLabel' => 'Establishment / Business',
+            'clause'      => "Must be conspicuously displayed at the establishment. Valid for the period stated unless sooner revoked. Subject to re-inspection. Non-transferable.",
+            'sig1Role'    => 'City Fire Marshal',
+            'sig1Office'  => 'Bureau of Fire Protection',
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Barangay Clearance' => [
+            'label'       => 'Barangay Clearance (for Business)',
+            'certTitle'   => 'Barangay Business Clearance',
+            'office'      => 'Barangay Hall &bull; Office of the Punong Barangay',
+            'legalBasis'  => "This clearance is hereby issued pursuant to the Local Government Code of 1991 (RA 7160) and applicable barangay ordinances, certifying that the business named below has no derogatory record and is cleared to operate within the territorial jurisdiction of the Barangay.",
+            'recordLabel' => 'Business / Establishment',
+            'clause'      => "This clearance is issued for the purpose of securing a Mayor's Permit. Valid for the period stated. Non-transferable. Revocable for cause.",
+            'sig1Role'    => 'Barangay Secretary',
+            'sig1Office'  => 'Barangay Hall',
+            'sig2Role'    => 'Punong Barangay',
+        ],
+        'Health Certificates' => [
+            'label'       => 'Health Certificates (Staff/Boarding House)',
+            'certTitle'   => 'Certificate of Health Compliance',
+            'office'      => 'City Health Office &bull; Environmental Health Division',
+            'legalBasis'  => "This certification is hereby issued pursuant to the Sanitation Code and applicable health ordinances of the City of Santiago, confirming that the personnel/staff or boarding house named below has complied with the required health and sanitation standards.",
+            'recordLabel' => 'Personnel / Boarding House',
+            'clause'      => "Issued to the named individual/establishment only. Non-transferable. Subject to revocation for violation of health and sanitation laws.",
+            'sig1Role'    => 'City Health Officer',
+            'sig1Office'  => 'City Health Office',
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Lease Contract' => [
+            'label'       => 'Lease Contract / Rental Agreement',
+            'certTitle'   => 'Certificate of Lease Contract Registration',
+            'office'      => 'Office of the City Assessor &bull; Zoning &amp; Rental Compliance Division',
+            'legalBasis'  => "This certification is hereby issued pursuant to the municipal rental registration and zoning ordinances of the City of Santiago, confirming that the lease or rental agreement for the property named below has been registered with, and reviewed by, this Office for compliance.",
+            'recordLabel' => 'Leased Property / Unit',
+            'clause'      => "This certification covers only the registration of the lease contract. It does not authorize business operations and does not substitute for a separate business permit. Non-transferable.",
+            'sig1Role'    => 'Zoning Administrator',
+            'sig1Office'  => "City Assessor's Office",
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Lease Clearance Certificate' => [
+            'label'       => 'Lease Clearance Certificate',
+            'certTitle'   => 'Certificate of Lease Clearance',
+            'office'      => 'Office of the City Assessor &bull; Zoning &amp; Rental Compliance Division',
+            'legalBasis'  => "This certification is hereby issued pursuant to the municipal rental registration and zoning ordinances of the City of Santiago, confirming that the lease or rental arrangement for the property named below has been registered with, and reviewed by, this Office for compliance with the applicable zoning classification and rental documentation requirements.",
+            'recordLabel' => 'Leased Property / Unit',
+            'clause'      => "This clearance covers only the registration and zoning compliance of the leased premises. It does not, by itself, authorize business operations and does not substitute for a separate business permit where required. Non-transferable.",
+            'sig1Role'    => 'Zoning Administrator',
+            'sig1Office'  => "City Assessor's Office",
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Occupancy Compliance Permit' => [
+            'label'       => 'Occupancy Compliance Permit',
+            'certTitle'   => 'Certificate of Occupancy Compliance',
+            'office'      => 'Office of the City Engineer &bull; Office of the Building Official',
+            'legalBasis'  => "This certification is hereby issued pursuant to the National Building Code and applicable municipal ordinances of the City of Santiago, confirming that the premises named below has undergone the required inspection and has satisfactorily complied with structural, safety, and occupancy standards for its declared use.",
+            'recordLabel' => 'Property / Premises',
+            'clause'      => "Must be conspicuously displayed at the premises. Subject to periodic re-inspection. Any structural alteration, change of use, or change of occupancy at the premises requires re-certification.",
+            'sig1Role'    => 'City Engineer / Building Official',
+            'sig1Office'  => 'Office of the Building Official',
+            'sig2Role'    => 'City Mayor',
+        ],
+        'Others' => [
+            'label'       => 'Other Permit / Certification',
+            'certTitle'   => 'Certificate of Permit / Certification',
+            'office'      => 'Office of the City Mayor &bull; Business Permits &amp; Licensing Office',
+            'legalBasis'  => "This certification is hereby issued pursuant to applicable municipal ordinances of the City of Santiago, confirming that the establishment named below has satisfactorily complied with the requirements for the issuance of this permit or certification.",
+            'recordLabel' => 'Business / Establishment',
+            'clause'      => "Must be conspicuously displayed at the establishment. Non-transferable. Subject to inspection and revocation for cause.",
+            'sig1Role'    => 'City Treasurer',
+            'sig1Office'  => 'Collections &amp; Revenue Office',
+            'sig2Role'    => 'City Mayor / BPLO Head',
+        ],
+    ];
+    return $types[$permitType] ?? $types['Business Permit'];
+}
+
+/* REUSABLE OFFICIAL PERMIT CERTIFICATE BUILDER */
+function buildPermitCertificateHtml(array $d) {
+    $cfg = getPermitTypeConfig($d['permitType']);
+    $displayPermitType = !empty($d['customPermitType']) ? $d['customPermitType'] : $cfg['label'];
+    $permitTitle = $displayPermitType . ' - ' . $d['bizName'];
+    $isPreview = !empty($d['isPreview']);
+    $permitNo = $d['permitNo'] ?? '';
+
+    $logoFile = __DIR__ . '/assets/images/images.jpg';
+    $logoSrc = '';
+    if (is_file($logoFile)) {
+        $logoSrc = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoFile));
+    }
+
+    $watermarkHtml = $isPreview
+        ? '<div class="preview-watermark">PREVIEW ONLY<span>Not Yet Official &mdash; Not Issued</span></div>'
+        : '';
+
+    $printBtn = $isPreview
+        ? '<div class="no-print preview-banner"><i class="fa-solid fa-eye" style="margin-right:8px;"></i> You are previewing this permit before it is issued. Nothing has been saved or sent to the owner yet.</div>'
+        : '<div class="no-print" style="text-align: right; margin-bottom: 20px; max-width: 820px; margin-left: auto; margin-right: auto;"><button onclick="window.print()" style="background: #dc2626; color: #fff; border: none; padding: 10px 22px; font-size: 14px; font-weight: 700; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-print" style="margin-right:8px;"></i>Print / Save as PDF</button></div>';
+
+    $permitNoRow = !empty($permitNo)
+        ? '<tr><td style="font-weight:700;">Permit Number</td><td><strong style="font-family:monospace;color:#dc2626;background:#fee2e2;padding:3px 10px;border-radius:6px;">' . htmlspecialchars($permitNo) . '</strong></td></tr>'
+        : '';
+
+    return '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>' . htmlspecialchars($permitTitle) . '</title>
+    <style>
+        body { font-family: Georgia, "Times New Roman", Times, serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
+        .preview-banner { max-width: 820px; margin: 0 auto 18px auto; background: #fff7ed; border: 1px solid #fbbf24; color: #92400e; padding: 10px 18px; border-radius: 10px; font-family: "Inter", Arial, sans-serif; font-size: 13px; text-align: center; }
+        .certificate-container { position: relative; border: 10px double #dc2626; padding: 30px 20px; max-width: 820px; margin: 0 auto; background: #ffffff; box-shadow: 0 14px 44px rgba(0,0,0,0.1); overflow: hidden; }
+        .certificate-container::before { content: ""; position: absolute; inset: 10px; border: 1.5px solid #f87171; pointer-events: none; }
+        .preview-watermark { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%) rotate(-27deg); font-size: 38px; font-weight: 800; color: rgba(217,119,6,0.16); text-transform: uppercase; letter-spacing: 4px; text-align: center; line-height: 1.15; z-index: 1; white-space: nowrap; }
+        .preview-watermark span { display: block; font-size: 14px; letter-spacing: 2px; margin-top: 6px; }
+        .header { text-align: center; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid #dc2626; position: relative; z-index: 2; }
+        .header img { width: 85px; height: 85px; object-fit: contain; margin-bottom: 8px; }
+        .header h3 { margin: 1px 0; font-size: 11px; text-transform: uppercase; font-weight: 500; letter-spacing: 2px; color: #64748b; }
+        .header h1 { margin: 6px 0 2px; font-size: 20px; text-transform: uppercase; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; }
+        .header h2 { margin: 2px 0 0; font-size: 12px; text-transform: uppercase; font-weight: 600; color: #d97706; letter-spacing: 1px; }
+        .cert-kicker { display: inline-block; margin-top: 16px; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #ef4444; border-top: 1px solid #fecaca; border-bottom: 1px solid #fecaca; padding: 4px 14px; }
+        .cert-body { text-align: center; margin: 24px 0; position: relative; z-index: 2; }
+        .cert-title { font-size: 16px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #dc2626; margin: 16px 0 10px; }
+        .cert-body p.lead { font-size: 13px; line-height: 1.75; margin: 0 auto; max-width: 630px; color: #334155; }
+        .business-box { background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 16px; margin: 20px 0; border-radius: 8px; text-align: left; position: relative; }
+        .business-box::before { content: "OFFICIAL RECORD"; position: absolute; top: -10px; left: 22px; background: #ffffff; padding: 0 10px; font-size: 10px; letter-spacing: 2px; color: #dc2626; font-weight: 700; }
+        .business-box table { width: 100%; font-size: 13px; border-collapse: collapse; }
+        .business-box td { padding: 6px 0; border-bottom: 1px dotted #cbd5e1; display: block; width: 100%; color: #0f172a; }
+        @media(min-width: 576px) {
+            .certificate-container { padding: 46px 54px 40px; }
+            .business-box td { display: table-cell; }
+            .preview-watermark { font-size: 52px; }
+            .header h1 { font-size: 24px; }
+        }
+        .business-box tr:last-child td { border-bottom: none; }
+        .validity-strip { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 8px; align-items: center; }
+        @media(min-width: 576px) { .validity-strip { flex-direction: row; justify-content: center; gap: 48px; } }
+        .validity-strip .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; }
+        .validity-strip .val { font-size: 14px; font-weight: 700; color: #dc2626; margin-top: 2px; }
+        .clause { font-size: 11px; font-style: italic; color: #475569; margin-top: 10px; }
+        .sig-area { display: flex; flex-direction: column; margin-top: 34px; gap: 30px; position: relative; z-index: 2; }
+        @media(min-width: 576px) { .sig-area { flex-direction: row; justify-content: space-between; align-items: flex-end; } }
+        .sig-block { flex: 1; text-align: center; }
+        .sig-line { border-top: 1px solid #0f172a; width: 200px; margin: 30px auto 6px auto; }
+        .sig-block strong { font-size: 12px; color: #0f172a; }
+        .sig-block span { font-size: 10px; color: #64748b; }
+        .seal-box { width: 75px; height: 75px; margin: 0 auto 4px; border: 2px dashed #dc2626; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; text-align: center; color: #dc2626; font-weight: 700; letter-spacing: 0.5px; line-height: 1.3; background: #fef2f2; }
+        .qr-box { display: none; }
+        @media(min-width: 768px) { .qr-box { position: absolute; bottom: 44px; right: 50px; width: 66px; height: 66px; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 7.5px; text-align: center; color: #64748b; background: repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 3px,#fff 3px,#fff 6px); z-index: 2; } }
+        .footer-seal { margin-top: 24px; font-size: 10px; text-align: center; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 10px; position: relative; z-index: 2; }
+        .footer-seal code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; word-break: break-all; color: #0f172a; }
+        @media print { body { padding: 0; background: #fff; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    ' . $printBtn . '
+    <div class="certificate-container">
+        ' . $watermarkHtml . '
+        <div class="qr-box">SCAN&nbsp;TO<br>VERIFY</div>
+        <div class="header">
+            <img src="' . $logoSrc . '" alt="City of Santiago Seal">
+            <h3>Republic of the Philippines</h3>
+            <h3>Province of Isabela</h3>
+            <h1>City of Santiago</h1>
+            <h2>' . $cfg['office'] . '</h2>
+            <div class="cert-kicker">Official Municipal Document</div>
+        </div>
+
+        <div class="cert-body">
+            <p class="cert-title">' . $cfg['certTitle'] . '</p>
+            <p class="lead">' . $cfg['legalBasis'] . '</p>
+
+            <div class="business-box">
+                <table>
+                    <tr><td style="width:38%;font-weight:700;">Tracking Number</td><td><strong>' . htmlspecialchars($d['trackingNo']) . '</strong></td></tr>
+                    <tr><td style="font-weight:700;">' . htmlspecialchars($cfg['recordLabel']) . '</td><td><span style="font-size:15px;font-weight:700;color:#dc2626;">' . htmlspecialchars($d['bizName']) . '</span></td></tr>
+                    <tr><td style="font-weight:700;">Registered Owner</td><td>' . htmlspecialchars($d['ownerName'] ?: 'N/A') . '</td></tr>
+                    <tr><td style="font-weight:700;">Permit Classification</td><td>' . htmlspecialchars($displayPermitType) . '</td></tr>
+                    ' . $permitNoRow . '
+                    <tr><td style="font-weight:700;">Official Remarks</td><td>' . htmlspecialchars($d['notes']) . '</td></tr>
+                </table>
+            </div>
+
+            <div class="validity-strip">
+                <div><div class="lbl">Date Issued</div><div class="val">' . htmlspecialchars($d['issueDate']) . '</div></div>
+                <div><div class="lbl">Valid Until</div><div class="val" style="color:#d97706;">' . htmlspecialchars($d['expiryDateFormatted']) . '</div></div>
+            </div>
+
+            <p class="clause">&ldquo;' . $cfg['clause'] . '&rdquo;</p>
+        </div>
+
+        <div class="sig-area">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <strong>' . htmlspecialchars($cfg['sig1Role']) . '</strong><br><span>' . $cfg['sig1Office'] . '</span>
+            </div>
+            <div class="sig-block">
+                <div class="seal-box">OFFICIAL<br>DRY SEAL</div>
+                <div class="sig-line" style="margin-top:0;"></div>
+                <strong>' . htmlspecialchars($cfg['sig2Role']) . '</strong><br><span>City of Santiago, Philippines</span>
+            </div>
+        </div>
+
+        <div class="footer-seal">
+            <p>Security Verification Hash: <code>' . htmlspecialchars($d['securityHash']) . '</code></p>
+            <p>' . ($isPreview ? 'Preview generated' : 'Verified and generated securely') . ' via RENTRACK LGU Official Municipal System &bull; Issued by Staff ID: ' . (int)$d['staffId'] . '</p>
+        </div>
+    </div>
+</body>
+</html>';
 }
 
 // ==========================
@@ -112,10 +369,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
     try {
         $conn->beginTransaction();
 
+        // 1. Update Renewal Status
         $updateStmt = $conn->prepare("UPDATE permit_renewals SET status = :status WHERE id = :id");
         $updateStmt->execute([':status' => $newStatus, ':id' => $renewalId]);
 
         if ($action === 'Approved' && !empty($newExpiryDate) && $rentalId > 0) {
+            // 2. Update Rental Expiry Date
             $expiryCol = columnExists($conn, 'rentals', 'permit_expiry_date') ? 'permit_expiry_date' : (columnExists($conn, 'rentals', 'expiry_date') ? 'expiry_date' : null);
             
             if ($expiryCol) {
@@ -126,10 +385,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_renewal'])) {
                     ':rental_id' => $rentalId
                 ]);
             }
+
+            // 3. GENERATE NEW HTML PERMIT AND SAVE TO DATABASE
+            // Kunin ang detalye ng rental at renewal
+            $rStmt = $conn->prepare("
+                SELECT r.id, r.tracking_no, r.business_name, r.rental_name, r.user_id, u.fullname as owner_name 
+                FROM rentals r 
+                LEFT JOIN users u ON r.user_id = u.id 
+                WHERE r.id = :rid
+            ");
+            $rStmt->execute([':rid' => $rentalId]);
+            $rentalInfo = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+            $renStmt = $conn->prepare("SELECT document_type FROM permit_renewals WHERE id = :id");
+            $renStmt->execute([':id' => $renewalId]);
+            $renewalDocType = $renStmt->fetchColumn() ?: 'Business Permit';
+
+            if ($rentalInfo && !empty($rentalInfo['user_id'])) {
+                $bizName = $rentalInfo['business_name'] ?: $rentalInfo['rental_name'];
+                $ownerId = (int)$rentalInfo['user_id'];
+                $trackingNo = $rentalInfo['tracking_no'] ?? 'TRK-' . $rentalId;
+                $folderPath = 'user_' . $ownerId;
+                
+                $displayPermitType = $renewalDocType;
+                $permitTitle = $displayPermitType . ' - ' . $bizName;
+                $storedName = 'permit_renewal_' . uniqid('', true) . '.html';
+                
+                $securityHash = hash('sha256', $rentalId . $bizName . time());
+                $issueDate = date('F d, Y');
+                $expiryDateFormatted = date('F d, Y', strtotime($newExpiryDate));
+
+                $prefixMap = getPermitPrefixMap();
+                $permitPrefix = $prefixMap[$displayPermitType] ?? 'PERMIT';
+                $year = date('Y');
+                
+                // Generate a new permit number for renewal
+                $permitSeqStmt = $conn->prepare("
+                    SELECT COUNT(*) + 1 
+                    FROM documents 
+                    WHERE business_permit_no LIKE :prefix
+                      AND EXTRACT(YEAR FROM uploaded_at) = :yr
+                ");
+                $permitSeqStmt->execute([
+                    ':prefix' => $permitPrefix . '-' . $year . '-%',
+                    ':yr'     => $year
+                ]);
+                $seq = (int)$permitSeqStmt->fetchColumn();
+                $generatedPermitNo = $permitPrefix . '-' . $year . '-RE' . str_pad($seq, 3, '0', STR_PAD_LEFT); // RE stands for Renewal
+
+                $permitHtml = buildPermitCertificateHtml([
+                    'trackingNo'          => $trackingNo,
+                    'bizName'             => $bizName,
+                    'ownerName'           => $rentalInfo['owner_name'] ?? 'N/A',
+                    'permitType'          => $displayPermitType,
+                    'customPermitType'    => '',
+                    'issueDate'           => $issueDate,
+                    'expiryDateFormatted' => $expiryDateFormatted,
+                    'notes'               => 'Renewed. Valid until: ' . $newExpiryDate . '.',
+                    'securityHash'        => $securityHash,
+                    'staffId'             => $staffId,
+                    'logo'                => 'assets/images/images.jpg',
+                    'isPreview'           => false,
+                    'permitNo'            => $generatedPermitNo,
+                ]);
+
+                // I-save ang bagong HTML permit sa Database
+                $insDocStmt = $conn->prepare("
+                    INSERT INTO documents (
+                        user_id, rental_id, title, type, notes, file_name, stored_name, owner_folder_path,
+                        business_permit_no, permit_expiry_date, permit_status, uploaded_at, permit_html
+                    )
+                    VALUES (
+                        :uid, :rid, :title, :type, :notes, :fname, :sname, :fpath,
+                        :bpno, :pexp, :pstat, NOW(), :permit_html
+                    )
+                ");
+                $insDocStmt->execute([
+                    ':uid'         => $ownerId,
+                    ':rid'         => $rentalId,
+                    ':title'       => $permitTitle,
+                    ':type'        => 'Permit',
+                    ':notes'       => 'Renewed. Valid until: ' . $newExpiryDate . '. Official HTML Certificate.',
+                    ':fname'       => $displayPermitType . '_' . preg_replace('/[^a-zA-Z0-9]/', '_', $bizName) . '_RENEWED.html',
+                    ':sname'       => $storedName,
+                    ':fpath'       => $folderPath,
+                    ':bpno'        => $generatedPermitNo,
+                    ':pexp'        => $newExpiryDate,
+                    ':pstat'       => 'Active',
+                    ':permit_html' => $permitHtml
+                ]);
+            }
         }
 
         $conn->commit();
-        $_SESSION['success'] = "Renewal request successfully updated!";
+        $_SESSION['success'] = "Renewal request successfully updated and new permit generated!";
         header("Location: renewals_approval.php");
         exit();
 
