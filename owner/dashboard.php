@@ -477,33 +477,73 @@ if (tableExists($conn, 'payments') && tableExists($conn, 'rentals') && columnExi
 
 /* ==============================================
    NEW: EXPIRING DOCUMENTS (<= 90 days or already expired)
+   Gaya sa logic ng documents.php: tinitingnan ang permit_expiry_date at notes
 ============================================== */
 $expiringDocs = [];
 $expiredCount = 0;
 $expiring30Count = 0;
-if (tableExists($conn, 'documents') && tableExists($conn, 'rentals')
-    && columnExists($conn, 'documents', 'expiry_date') && columnExists($conn, 'documents', 'rental_id')) {
-    $stmtExp = $conn->prepare("
-        SELECT d.id, d.rental_id, d.title, d.expiry_date::date AS expiry_date,
-               (d.expiry_date::date - CURRENT_DATE) AS days_left,
-               COALESCE(NULLIF(r.rental_name,''), NULLIF(r.business_name,''), 'Rental #' || r.id) AS rental_label
-        FROM documents d INNER JOIN rentals r ON d.rental_id = r.id
-        WHERE r.user_id = :uid AND r.is_deleted='0'
-          AND d.expiry_date IS NOT NULL
-          AND d.expiry_date::date <= CURRENT_DATE + INTERVAL '90 days'
-        ORDER BY d.expiry_date ASC
-        LIMIT 20
-    ");
+
+if (tableExists($conn, 'documents') && tableExists($conn, 'rentals')) {
     try {
+        // Kunin lahat ng permits ng user na may expiry
+        $stmtExp = $conn->prepare("
+            SELECT d.id, d.rental_id, d.title, d.type, d.business_permit_no, d.notes, d.permit_expiry_date,
+                   COALESCE(NULLIF(r.rental_name,''), NULLIF(r.business_name,''), 'Rental #' || r.id) AS rental_label
+            FROM documents d 
+            INNER JOIN rentals r ON d.rental_id = r.id
+            WHERE r.user_id = :uid AND r.is_deleted = '0'
+              AND (LOWER(d.type) = 'permit' OR LOWER(d.title) LIKE '%permit%')
+        ");
         $stmtExp->execute([':uid' => $userId]);
-        $allExp = $stmtExp->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($allExp as $e) {
-            $dl = (int)$e['days_left'];
-            if ($dl < 0) $expiredCount++;
-            elseif ($dl <= 30) $expiring30Count++;
+        $allPermits = $stmtExp->fetchAll(PDO::FETCH_ASSOC);
+        
+        $today = new DateTime(date('Y-m-d'));
+        
+        foreach ($allPermits as $p) {
+            $validUntil = null;
+            
+            // Logic gaya sa documents.php
+            if (!empty($p['permit_expiry_date'])) {
+                $validUntil = $p['permit_expiry_date'];
+            } elseif (!empty($p['notes']) && preg_match('/Valid until:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/i', $p['notes'], $m)) {
+                $validUntil = $m[1];
+            }
+            
+            if ($validUntil) {
+                $expiry = new DateTime(date('Y-m-d', strtotime($validUntil)));
+                $interval = $today->diff($expiry);
+                $days = (int)$interval->format('%r%a');
+                
+                // I-save kung expired, expiring within 30 days, o within 90 days
+                if ($days <= 90) {
+                    $expiringDocs[] = [
+                        'id' => $p['id'],
+                        'title' => $p['title'],
+                        'rental_label' => $p['rental_label'],
+                        'expiry_date' => $validUntil,
+                        'days_left' => $days
+                    ];
+                    
+                    if ($days < 0) {
+                        $expiredCount++;
+                    } elseif ($days <= 30) {
+                        $expiring30Count++;
+                    }
+                }
+            }
         }
-        $expiringDocs = array_slice($allExp, 0, 5);
-    } catch (PDOException $e) { $expiringDocs = []; }
+        
+        // I-sort by days left (pinakamalapit/expired muna)
+        usort($expiringDocs, function($a, $b) {
+            return $a['days_left'] <=> $b['days_left'];
+        });
+        
+        // Limitahan sa 5 para sa dashboard
+        $expiringDocs = array_slice($expiringDocs, 0, 5);
+        
+    } catch (PDOException $e) { 
+        $expiringDocs = []; 
+    }
 }
 
 /* ==============================================
