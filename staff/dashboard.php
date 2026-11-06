@@ -54,17 +54,17 @@ if (isset($_GET['ajax_action'])) {
                     elseif ($status === 'Approved') { $badgeBg = '#dcfce7'; $badgeColor = '#15803d'; }
                     elseif ($status === 'Rejected') { $badgeBg = '#fee2e2'; $badgeColor = '#b91c1c'; }
 
-                    echo '<a href="view_rental.php?id=' . $row['id'] . '" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; color: #111827; text-decoration: none; transition: all 0.2s ease;" onmouseover="this.style.background=\'#f3f4f6\'; this.style.borderColor=\'#dc2626\';" onmouseout="this.style.background=\'#f9fafb\'; this.style.borderColor=\'#e5e7eb\';">';
+                    echo '<a href="view_rental.php?id=' . $row['id'] . '" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; color: #000000; text-decoration: none; transition: all 0.2s ease;" onmouseover="this.style.background=\'#f3f4f6\'; this.style.borderColor=\'#dc2626\';" onmouseout="this.style.background=\'#ffffff\'; this.style.borderColor=\'#e5e7eb\';">';
                     echo '<div style="display: flex; flex-direction: column; gap: 4px;">';
-                    echo '<div style="font-weight: 600; font-size: 14px; color: #dc2626;">' . htmlspecialchars($row['tracking_no']) . ' <span style="color: #9ca3af; font-weight: 400;">•</span> ' . htmlspecialchars($row['business_name']) . '</div>';
-                    echo '<div style="font-size: 12px; color: #4b5563;"><i class="fa-solid fa-user-shield" style="font-size: 11px; margin-right: 4px;"></i> Owner: ' . htmlspecialchars($row['owner_name'] ?? 'N/A') . '</div>';
+                    echo '<div style="font-weight: 600; font-size: 14px; color: #000000;">' . htmlspecialchars($row['tracking_no']) . ' <span style="color: #9ca3af; font-weight: 400;">•</span> ' . htmlspecialchars($row['business_name']) . '</div>';
+                    echo '<div style="font-size: 12px; color: #000000;"><i class="fa-solid fa-user-shield" style="font-size: 11px; margin-right: 4px;"></i> Owner: ' . htmlspecialchars($row['owner_name'] ?? 'N/A') . '</div>';
                     echo '</div>';
                     echo '<span style="padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: ' . $badgeBg . '; color: ' . $badgeColor . '; text-transform: uppercase;">' . htmlspecialchars($status) . '</span>';
                     echo '</a>';
                 }
                 echo '</div>';
             } else {
-                echo '<div style="text-align: center; padding: 30px; color: #6b7280; font-size: 13px;"><i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i> No matching results found.</div>';
+                echo '<div style="text-align: center; padding: 30px; color: #000000; font-size: 13px;"><i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i> No matching results found.</div>';
             }
         }
         exit;
@@ -140,7 +140,7 @@ if (isset($_GET['ajax_action'])) {
 
         header('Content-Type: text/html; charset=utf-8');
         if (empty($notifs)) {
-            echo '<div class="notification-item" style="text-align:center;color:#64748b;padding:20px;">No notifications</div>';
+            echo '<div class="notification-item" style="text-align:center;color:#000000;padding:20px;">No notifications</div>';
         } else {
             foreach ($notifs as $n) {
                 echo '<div class="notification-item">';
@@ -624,12 +624,12 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         :root {
-            --bg-primary: #f8fafc;
+            --bg-primary: #ffffff; /* Changed to Pure White */
             --bg-card: #ffffff;
             --border-glass: #e2e8f0;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
+            --text-primary: #000000; /* Changed to Black */
+            --text-secondary: #000000; /* Changed to Black */
+            --text-muted: #333333; /* Darker Gray */
 
             --primary-red: #dc2626;
             --primary-red-dark: #991b1b;
@@ -658,8 +658,8 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             border: 0 !important;
             height: 100%;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            background: #ffffff; /* Pure White */
+            color: #000000; /* Black */
             overflow-x: hidden;
             -webkit-text-size-adjust: 100%;
             -moz-text-size-adjust: 100%;
@@ -737,7 +737,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             min-height: 100dvh;
             margin: 0 !important;
             padding: 0 !important;
-            background: #f8fafc;
+            background: #ffffff; /* Plain White */
         }
 
         .sticky-header {
@@ -780,13 +780,13 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
         }
         .brand-text h2 { font-size: 14px; font-weight: 800; color: var(--primary-red); line-height: 1.1; margin: 0; }
-        .brand-text span { font-size: 9px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1.3px; }
+        .brand-text span { font-size: 9px; color: #000000; font-weight: 700; text-transform: uppercase; letter-spacing: 1.3px; }
 
         .menu-toggle {
             display: none;
             width: 42px; height: 42px; border-radius: 10px;
             align-items: center; justify-content: center;
-            background: #f8fafc; border: 1px solid #e2e8f0; color: var(--primary-red); cursor: pointer;
+            background: #ffffff; border: 1px solid #e2e8f0; color: var(--primary-red); cursor: pointer;
             font-size: 16px;
             flex-shrink: 0;
         }
@@ -823,7 +823,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             align-items: center;
             gap: 6px;
             padding: 10px 10px;
-            color: #334155;
+            color: #000000;
             text-decoration: none;
             font-size: 12.5px;
             font-weight: 600;
@@ -890,7 +890,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             gap: 12px;
             padding: 10px 12px;
             border-radius: 8px;
-            color: #334155;
+            color: #000000;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -922,16 +922,16 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .search-container i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--primary-red); z-index: 2; font-size: 13px; }
         .search-container input {
             width: 100%; padding: 8px 14px 8px 38px; border-radius: 999px;
-            border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a; font-size: 13px; outline: none;
+            border: 1px solid #e2e8f0; background: #ffffff; color: #000000; font-size: 13px; outline: none;
             box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
-        .search-container input::placeholder { color: #94a3b8; }
-        .search-container:hover input { border-color: var(--primary-red); background: var(--red-soft); }
+        .search-container input::placeholder { color: #64748b; }
+        .search-container:hover input { border-color: var(--primary-red); background: #fff1f2; }
 
         .navbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        .nav-clock { display: flex; flex-direction: column; align-items: flex-end; padding: 3px 14px; border-radius: 10px; background: var(--red-soft); border: 1px solid var(--primary-red-light); }
-        .nav-clock .time { font-family: monospace; font-size: 13px; font-weight: 700; color: var(--primary-red); }
-        .nav-clock .date { font-size: 10px; color: #64748b; }
+        .nav-clock { display: flex; flex-direction: column; align-items: flex-end; padding: 3px 14px; border-radius: 10px; background: #ffffff; border: 1px solid #e2e8f0; }
+        .nav-clock .time { font-family: monospace; font-size: 13px; font-weight: 700; color: #000000; }
+        .nav-clock .date { font-size: 10px; color: #000000; }
 
         .nav-icon {
             width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
@@ -955,7 +955,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 13px; overflow: hidden;
         }
         .profile-btn .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .profile-btn .info .name { font-size: 12px; font-weight: 600; color: #0f172a; }
+        .profile-btn .info .name { font-size: 12px; font-weight: 600; color: #000000; }
         .profile-btn .info .role { font-size: 9px; color: var(--primary-red); font-weight: 700; text-transform: uppercase; }
 
         .profile-dropdown, .notification-dropdown {
@@ -967,17 +967,17 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .notification-dropdown { width: 360px; padding: 0; max-height: 480px; overflow-y: auto; }
         .profile-dropdown.show, .notification-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
         .profile-dropdown .dropdown-item {
-            display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: #334155; text-decoration: none; font-size: 13px;
+            display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: #000000; text-decoration: none; font-size: 13px;
         }
-        .profile-dropdown .dropdown-item:hover { background: var(--red-soft); color: var(--primary-red); }
+        .profile-dropdown .dropdown-item:hover { background: #fff1f2; color: var(--primary-red); }
         .profile-dropdown .dropdown-item.danger { color: #dc2626; }
 
-        .notification-title { padding: 14px 20px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; color: #0f172a; position: sticky; top: 0; background: #ffffff; z-index: 1; }
+        .notification-title { padding: 14px 20px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; color: #000000; position: sticky; top: 0; background: #ffffff; z-index: 1; }
         .notification-item { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; }
         .notification-item:last-child { border-bottom: none; }
-        .notification-item strong { display: block; font-size: 13px; margin-bottom: 2px; color: var(--primary-red); }
-        .notification-item p { font-size: 12px; color: #475569; margin: 0; }
-        .notification-item small { display: block; font-size: 10px; color: #94a3b8; margin-top: 4px; }
+        .notification-item strong { display: block; font-size: 13px; margin-bottom: 2px; color: #000000; }
+        .notification-item p { font-size: 12px; color: #000000; margin: 0; }
+        .notification-item small { display: block; font-size: 10px; color: #333333; margin-top: 4px; }
 
         /* ============================================
            CONTENT AREA
@@ -987,59 +987,88 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             padding: 24px 28px 20px;
             padding-bottom: calc(20px + var(--safe-bottom));
             overflow-y: auto;
-            background: #f8fafc;
+            background: #ffffff; /* Pure White */
             -webkit-overflow-scrolling: touch;
         }
 
         .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
-        .page-header h1 { font-size: 26px; font-weight: 700; color: #0f172a; margin: 0; }
-        .page-header h1 i { color: var(--primary-red); margin-right: 10px; }
-        .page-header p { color: #64748b; font-size: 14px; margin-top: 4px; }
-        .date-badge { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 40px; padding: 8px 18px; font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; }
+        .page-header h1 { font-size: 26px; font-weight: 700; color: #000000; margin: 0; }
+        .page-header h1 i { color: var(--primary-red); margin-right: 10px; } /* Red Icon */
+        .page-header p { color: #000000; font-size: 14px; margin-top: 4px; }
+        .date-badge { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 40px; padding: 8px 18px; font-size: 13px; color: #000000; display: flex; align-items: center; gap: 8px; }
 
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
 
         .stat-card {
             border-radius: var(--radius); padding: 18px 20px; display: flex; align-items: center; gap: 14px;
-            transition: var(--transition); box-shadow: 0 4px 12px rgba(0,0,0,0.03); text-decoration: none; color: #fff; position: relative; overflow: hidden;
+            transition: var(--transition); text-decoration: none; color: #000000; position: relative; overflow: hidden;
         }
         .stat-card:active { transform: scale(0.98); }
         .stat-card .icon {
-            width: 46px; height: 46px; border-radius: 12px; background: rgba(0,0,0,0.12);
-            border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; color: #fff;
+            width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
         }
 
-        .stat-card.bg-green { background: linear-gradient(135deg, #dc2626, #991b1b); }
-        .stat-card.bg-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .stat-card.bg-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-        .stat-card.bg-yellow { background: linear-gradient(135deg, #eab308, #ca8a04); }
-        .stat-card.bg-cyan { background: linear-gradient(135deg, #0d9488, #0f766e); }
+        /* ✅ PLAIN WHITE CARD - STATS CARDS (BLACK TEXT, RED ICONS) */
+        .stat-card.bg-green,
+        .stat-card.bg-orange,
+        .stat-card.bg-blue,
+        .stat-card.bg-yellow,
+        .stat-card.bg-cyan { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
 
-        .stat-card .info h3 { font-size: 22px; font-weight: 800; line-height: 1.2; color: #fff; margin: 0; }
-        .stat-card .info p { font-size: 11px; color: rgba(255,255,255,0.9); font-weight: 600; text-transform: uppercase; margin: 0; }
+        .stat-card .icon {
+            background: #ffffff; 
+            border: 1px solid #e2e8f0;
+            color: var(--primary-red); /* Red Icon */
+        }
 
-        .section-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .stat-card .info h3 { font-size: 22px; font-weight: 800; line-height: 1.2; color: #000000; margin: 0; }
+        .stat-card .info p { font-size: 11px; color: #000000; font-weight: 600; text-transform: uppercase; margin: 0; }
+
+        .section-title { font-size: 18px; font-weight: 700; color: #000000; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
         .section-title::before { content: ''; width: 4px; height: 24px; border-radius: 999px; background: var(--primary-red); }
 
         .action-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
         .action-card {
-            border-radius: var(--radius-sm); padding: 18px 16px; text-align: center; text-decoration: none; color: #fff;
-            transition: var(--transition); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border-radius: var(--radius-sm); padding: 18px 16px; text-align: center; text-decoration: none; color: #000000;
+            transition: var(--transition); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
             min-height: 100px;
         }
         .action-card:active { transform: scale(0.97); }
-        .action-card i { font-size: 28px; }
-        .action-card span { font-size: 13px; font-weight: 700; }
+        .action-card i { font-size: 28px; color: var(--primary-red); } /* Red Icons */
+        .action-card span { font-size: 13px; font-weight: 700; color: #000000; }
         .action-card .badge-count { background: #fbbf24; color: #7c2d12; font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 999px; box-shadow: 0 0 8px rgba(251, 191, 36, 0.6); }
 
-        .bg-primary-action   { background: linear-gradient(135deg, #dc2626, #991b1b); }
-        .bg-secondary-action { background: linear-gradient(135deg, #b45309, #92400e); }
-        .bg-info-action      { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-        .bg-warning-action   { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .bg-success-action   { background: linear-gradient(135deg, #0e8a60, #047857); }
-        .bg-danger-action    { background: linear-gradient(135deg, #ef4444, #b91c1c); }
-        .bg-dark-action      { background: linear-gradient(135deg, #64748b, #334155); }
-        .bg-purple-action    { background: linear-gradient(135deg, #d946ef, #a21caf); }
+        /* ✅ PLAIN WHITE CARD - QUICK ACTIONS (BLACK TEXT, RED ICONS) */
+        .bg-primary-action,
+        .bg-secondary-action,
+        .bg-info-action,
+        .bg-warning-action,
+        .bg-success-action,
+        .bg-danger-action,
+        .bg-dark-action,
+        .bg-purple-action { 
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .bg-primary-action:hover,
+        .bg-secondary-action:hover,
+        .bg-info-action:hover,
+        .bg-warning-action:hover,
+        .bg-success-action:hover,
+        .bg-danger-action:hover,
+        .bg-dark-action:hover,
+        .bg-purple-action:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+            border-color: #cbd5e1;
+        }
 
         .dashboard-row { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 20px; }
 
@@ -1049,38 +1078,36 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             border-radius: var(--radius);
             padding: 20px 22px 22px;
             box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+            color: #000000;
         }
 
+        /* ✅ WHITE HEADER CARD WITH BLACK TEXT */
         .page-header.glass-card {
-            background: #fff1f2;
-            border: 1px solid #fecdd3;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
             position: relative;
             overflow: hidden;
         }
         .page-header.glass-card::after {
-            content: '';
-            position: absolute;
-            width: 180px; height: 180px; border-radius: 50%;
-            background: rgba(225, 29, 72, 0.05);
-            bottom: -60px; right: -40px; pointer-events: none;
+            display: none !important; /* Tinanggal ang pink circle */
         }
-        .page-header.glass-card h1 { color: #9f1239 !important; position: relative; z-index: 1; }
-        .page-header.glass-card h1 i { color: var(--primary-red) !important; }
-        .page-header.glass-card p { color: #334155 !important; position: relative; z-index: 1; }
-        .page-header.glass-card p span { color: #9f1239 !important; font-weight: 700; }
+        .page-header.glass-card h1 { color: #000000 !important; position: relative; z-index: 1; }
+        .page-header.glass-card h1 i { color: var(--primary-red) !important; } /* Red Icon */
+        .page-header.glass-card p { color: #000000 !important; position: relative; z-index: 1; }
+        .page-header.glass-card p span { color: #000000 !important; font-weight: 700; }
         .page-header.glass-card .date-badge {
-            color: var(--primary-red) !important;
+            color: #000000 !important;
             background: #ffffff !important;
-            border: 1px solid #fecdd3 !important;
+            border: 1px solid #cbd5e1 !important;
             position: relative; z-index: 1;
             font-weight: 600;
         }
-        .page-header.glass-card .date-badge i { color: var(--primary-red) !important; }
+        .page-header.glass-card .date-badge i { color: var(--primary-red) !important; } /* Red Icon */
 
-        .glass-card .card-header { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 15px; margin-bottom: 16px; color: #0f172a; }
-        .glass-card .card-header i { color: var(--primary-red); margin-right: 8px; }
-        .glass-card .card-header .view-all { font-size: 12px; color: #64748b; text-decoration: none; }
+        .glass-card .card-header { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 15px; margin-bottom: 16px; color: #000000; }
+        .glass-card .card-header i { color: var(--primary-red); margin-right: 8px; } /* Red Icon */
+        .glass-card .card-header .view-all { font-size: 12px; color: #000000; text-decoration: none; }
         .glass-card .card-header .view-all:hover { color: var(--primary-red); }
 
         .graph-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
@@ -1095,31 +1122,31 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .staff-row { display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 20px; }
         .charts-row > .glass-card, .staff-row > .glass-card { min-width: 0; }
         .charts-row .chart-container { height: 200px; }
-        .empty-note { text-align: center; color: #94a3b8; font-size: 12px; padding: 40px 10px; }
+        .empty-note { text-align: center; color: #000000; font-size: 12px; padding: 40px 10px; }
 
         .map-filters { display: flex; gap: 8px; margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; scrollbar-width: none; }
         .map-filters::-webkit-scrollbar { display: none; }
-        .map-filter-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all .15s ease; min-height: 38px; }
+        .map-filter-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e2e8f0; background: #ffffff; color: #000000; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all .15s ease; min-height: 38px; }
         .map-filter-btn:hover { border-color: var(--primary-red); }
         .map-filter-btn.active { background: var(--primary-red); border-color: var(--primary-red); color: #fff; }
         .map-filter-btn .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
         .status-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-        .status-pills a { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 12px; color: #334155; text-decoration: none; min-height: 44px; }
-        .status-pills a:hover { border-color: var(--primary-red); background: var(--red-soft); }
+        .status-pills a { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 12px; border-radius: 10px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 12px; color: #000000; text-decoration: none; min-height: 44px; }
+        .status-pills a:hover { border-color: var(--primary-red); background: #fff1f2; }
         .status-pills a:active { transform: scale(0.98); }
-        .status-pills a b { color: #0f172a; }
+        .status-pills a b { color: #000000; }
         .status-pills .sp-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 
         .mini-list { display: flex; flex-direction: column; gap: 8px; }
-        .mini-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 10px; text-decoration: none; color: #0f172a; min-height: 52px; transition: all .15s ease; }
-        .mini-item:hover { border-color: var(--primary-red); background: var(--red-soft); }
+        .mini-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #e2e8f0; background: #ffffff; border-radius: 10px; text-decoration: none; color: #000000; min-height: 52px; transition: all .15s ease; }
+        .mini-item:hover { border-color: var(--primary-red); background: #fff1f2; }
         .mini-item:active { transform: scale(0.99); }
         .mini-item .mi-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .mini-item .mi-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; flex-shrink: 0; }
+        .mini-item .mi-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--primary-red); font-size: 13px; flex-shrink: 0; border: 1px solid #e2e8f0; background: #ffffff !important; }
         .mini-item .mi-text { min-width: 0; }
-        .mini-item .mi-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .mini-item .mi-sub { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mini-item .mi-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #000000; }
+        .mini-item .mi-sub { font-size: 11px; color: #000000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .mini-item .mi-tag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
         .tag-red { background: #fee2e2; color: #b91c1c; }
         .tag-amber { background: #fef3c7; color: #b45309; }
@@ -1139,12 +1166,12 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         }
 
         .table-wrap { overflow-x: auto; background: transparent !important; -webkit-overflow-scrolling: touch; }
-        .table { width: 100%; border-collapse: collapse; font-size: 13px; color: #0f172a !important; background-color: transparent !important; margin-bottom: 0; }
-        .table > :not(caption) > * > * { background-color: transparent !important; color: #0f172a !important; box-shadow: none !important; }
-        .table th { text-align: left; padding: 12px 14px; color: #64748b !important; font-weight: 600; border-bottom: 1px solid #e2e8f0 !important; font-size: 11px; text-transform: uppercase; background: transparent !important; white-space: nowrap; }
-        .table td { padding: 14px !important; border-bottom: 1px solid #f1f5f9 !important; color: #334155 !important; vertical-align: middle; font-weight: 500; white-space: nowrap; }
-        .table tr:hover { background: var(--red-soft) !important; cursor: pointer; }
-        .table td small { color: #64748b !important; }
+        .table { width: 100%; border-collapse: collapse; font-size: 13px; color: #000000 !important; background-color: transparent !important; margin-bottom: 0; }
+        .table > :not(caption) > * > * { background-color: transparent !important; color: #000000 !important; box-shadow: none !important; }
+        .table th { text-align: left; padding: 12px 14px; color: #000000 !important; font-weight: 700; border-bottom: 1px solid #e2e8f0 !important; font-size: 11px; text-transform: uppercase; background: transparent !important; white-space: nowrap; }
+        .table td { padding: 14px !important; border-bottom: 1px solid #f1f5f9 !important; color: #000000 !important; vertical-align: middle; font-weight: 500; white-space: nowrap; }
+        .table tr:hover { background: #fff1f2 !important; cursor: pointer; }
+        .table td small { color: #000000 !important; }
 
         .badge { display: inline-block; padding: 4px 12px; border-radius: 40px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
         .badge-warning { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
@@ -1153,14 +1180,14 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .badge-secondary { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
 
         .status-summary { display: flex; flex-direction: column; gap: 12px; }
-        .status-summary a { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #475569; padding: 10px 12px; border-radius: 8px; text-decoration: none; min-height: 44px; }
-        .status-summary a:hover { background: var(--red-soft); color: #0f172a; }
+        .status-summary a { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #000000; padding: 10px 12px; border-radius: 8px; text-decoration: none; min-height: 44px; }
+        .status-summary a:hover { background: #fff1f2; color: #000000; }
         .status-dot { width: 10px; height: 10px; border-radius: 50%; }
         .status-dot.pending { background: #f59e0b; }
         .status-dot.approved { background: #16a34a; }
         .status-dot.rejected { background: #dc2626; }
         .status-dot.expired { background: #94a3b8; }
-        .status-summary strong { margin-left: auto; color: #0f172a; font-size: 16px; }
+        .status-summary strong { margin-left: auto; color: #000000; font-size: 16px; }
 
         /* ============================================
            CHAT WIDGET
@@ -1187,26 +1214,26 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         }
         .chat-header .title-area { display: flex; align-items: center; gap: 10px; }
         .chat-header .status-dot { width: 9px; height: 9px; background: #34d399; border-radius: 50%; box-shadow: 0 0 8px #34d399; }
-        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; -webkit-overflow-scrolling: touch; }
+        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #ffffff; -webkit-overflow-scrolling: touch; }
         .chat-message { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.4; word-break: break-word; }
-        .chat-message.incoming { background: #ffffff; color: #0f172a; align-self: flex-start; border: 1px solid #e2e8f0; }
+        .chat-message.incoming { background: #ffffff; color: #000000; align-self: flex-start; border: 1px solid #e2e8f0; }
         .chat-message.outgoing { background: var(--primary-red); color: #ffffff; font-weight: 600; align-self: flex-end; }
         .chat-message img { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
 
         .chat-footer { padding: 10px 12px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
         .chat-input-row { display: flex; gap: 6px; align-items: center; }
         .chat-footer input[type="text"] {
-            flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 8px;
-            color: #0f172a; font-size: 14px; outline: none;
+            flex: 1; background: #ffffff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 8px;
+            color: #000000; font-size: 14px; outline: none;
             min-height: 40px;
         }
         .chat-footer input[type="text"]:focus { border-color: var(--primary-red); background: #fff; }
         .chat-btn-action {
-            background: #f8fafc; border: 1px solid #e2e8f0; color: var(--primary-red);
+            background: #ffffff; border: 1px solid #e2e8f0; color: var(--primary-red);
             width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 14px;
             flex-shrink: 0;
         }
-        .chat-btn-action:hover { background: var(--red-soft); border-color: var(--primary-red); }
+        .chat-btn-action:hover { background: #fff1f2; border-color: var(--primary-red); }
         .chat-send-btn {
             background: var(--primary-red); border: none; color: #ffffff; width: 40px; height: 40px; border-radius: 8px;
             display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-weight: bold;
@@ -1215,14 +1242,14 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .chat-send-btn:hover { background: var(--primary-red-dark); }
         #selectedFilePreview { font-size: 11px; color: var(--primary-red); display: none; align-items: center; gap: 6px; }
 
-        .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; flex-wrap: wrap; gap: 10px; }
+        .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #000000; flex-wrap: wrap; gap: 10px; }
         .footer .brand { color: var(--primary-red); font-weight: 700; }
 
-        .modal-content { background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 16px !important; box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important; color: #0f172a; }
+        .modal-content { background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 16px !important; box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important; color: #000000; }
         .modal-header { border-bottom: 1px solid #f1f5f9 !important; }
         .modal-footer { border-top: 1px solid #f1f5f9 !important; }
-        .modal-body { color: #0f172a; }
-        .modal-body .text-muted { color: #64748b !important; }
+        .modal-body { color: #000000; }
+        .modal-body .text-muted { color: #333333 !important; }
 
         /* MOBILE CARD LIST FOR RECENT APPLICATIONS */
         .recent-apps-list { display: none; flex-direction: column; gap: 12px; }
@@ -1240,9 +1267,9 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         .recent-app-card .app-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #f1f5f9; font-size: 12.5px; gap: 10px; }
         .recent-app-card .app-row:last-child { border-bottom: none; padding-bottom: 0; }
         .recent-app-card .app-row:first-child { padding-top: 0; }
-        .recent-app-card .app-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
-        .recent-app-card .app-value { font-weight: 600; color: #0f172a; text-align: right; word-break: break-word; font-size: 12.5px; }
-        .recent-app-card .app-value.green { color: var(--primary-red); font-weight: 700; }
+        .recent-app-card .app-label { font-size: 10px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+        .recent-app-card .app-value { font-weight: 600; color: #000000; text-align: right; word-break: break-word; font-size: 12.5px; }
+        .recent-app-card .app-value.green { color: #000000; font-weight: 700; }
 
         /* ============================================
            RESPONSIVE — DESKTOP 1400 / 1200
@@ -1683,7 +1710,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                                         </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <div class="notification-item" style="text-align:center;color:#64748b;padding:20px;">No notifications</div>
+                                    <div class="notification-item" style="text-align:center;color:#000000;padding:20px;">No notifications</div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -1701,7 +1728,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                                     <div class="name"><?php echo htmlspecialchars($staffName); ?></div>
                                     <div class="role"><?php echo htmlspecialchars($staffRole); ?></div>
                                 </div>
-                                <i class="fa-solid fa-chevron-down chevron" style="color: #64748b;"></i>
+                                <i class="fa-solid fa-chevron-down chevron" style="color: #000000;"></i>
                             </div>
 
                             <div class="profile-dropdown" id="profileDropdown">
@@ -1716,7 +1743,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             </div>
 
             <main class="content">
-                <!-- LIGHT PINK HEADER CARD -->
+                <!-- ✅ PLAIN WHITE HEADER CARD (RED ICONS, BLACK TEXT) -->
                 <div class="page-header glass-card">
                     <div>
                         <h1><i class="fa-solid fa-gauge-high"></i> Staff Dashboard</h1>
@@ -1745,8 +1772,8 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         <span><i class="fa-solid fa-map-location-dot"></i> LGU Property Locations &amp; Inspection Route Map</span>
                         <div class="map-controls d-flex align-items-center gap-3 flex-wrap">
                             <div style="position: relative; display: flex; gap: 6px; min-width: 250px;">
-                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 13px;"></i>
-                                <input type="text" id="mapSearchInput" class="form-control form-control-sm" placeholder="Search barangay, city, or place..." style="padding-left: 34px; border-radius: 8px; font-size: 12px; border: 1px solid #e2e8f0;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--primary-red); font-size: 13px;"></i>
+                                <input type="text" id="mapSearchInput" class="form-control form-control-sm" placeholder="Search barangay, city, or place..." style="padding-left: 34px; border-radius: 8px; font-size: 12px; border: 1px solid #e2e8f0; color: #000000;">
                                 <button class="btn btn-sm" id="mapSearchBtn" style="font-size: 12px; font-weight: 600; border-radius: 8px; background: var(--primary-red); border: none; padding: 0 14px; flex-shrink: 0; color: #fff;"><i class="fa-solid fa-arrow-right"></i></button>
                             </div>
                             <button class="btn btn-sm" id="locateMeBtn" style="font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid var(--primary-red); color: var(--primary-red); background: transparent;"><i class="fa-solid fa-crosshairs me-1"></i> My GPS Location</button>
@@ -1759,7 +1786,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         <button type="button" class="map-filter-btn" data-filter="rejected"><span class="dot" style="background:#ef4444;"></span>Rejected</button>
                     </div>
                     <div id="propertyMap" style="width: 100%; height: 300px; border-radius: 12px; z-index: 1;"></div>
-                    <div class="form-text mt-2" style="font-size: 12px; color: #64748b;">
+                    <div class="form-text mt-2" style="font-size: 12px; color: #000000;">
                         <i class="fa-solid fa-circle-info me-1" style="color: var(--primary-red);"></i> Tip: Tap a marker for details or a quick route. Double-tap the map to get coordinates.
                     </div>
                 </div>
@@ -1777,7 +1804,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                 </div>
                 </div><!-- /.map-row -->
 
-                <!-- STATS GRID -->
+                <!-- STATS GRID (RED ICONS, BLACK TEXT) -->
                 <div class="stats-grid">
                     <a href="inspections.php" class="stat-card bg-green">
                         <div class="icon"><i class="fa-solid fa-clipboard-check"></i></div>
@@ -1810,6 +1837,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                 </div>
 
                 <div class="section-title">Quick Actions</div>
+                <!-- QUICK ACTIONS (RED ICONS, BLACK TEXT) -->
                 <div class="action-grid">
                     <a href="rentals.php" class="action-card bg-primary-action"><i class="fa-solid fa-folder-open"></i><span>Rental Applications</span></a>
                     <a href="renewals_approval.php" class="action-card bg-info-action"><i class="fa-solid fa-file-circle-exclamation"></i><span>Permit Renewals</span><?php if ($pendingRenewalsCount > 0): ?><span class="badge-count"><?php echo $pendingRenewalsCount; ?></span><?php endif; ?></a>
@@ -1839,7 +1867,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         <div class="card-header"><span><i class="fa-solid fa-chart-pie"></i>Payments</span></div>
                         <?php if (($verifiedPayments + $pendingPayments) > 0): ?>
                             <div class="chart-container" style="height:150px;"><canvas id="paymentChart"></canvas></div>
-                            <div class="text-center mt-2" style="font-size:12px;color:#64748b;">Collected: <b style="color:#dc2626;">&#8369;<?php echo number_format($totalPayments, 2); ?></b></div>
+                            <div class="text-center mt-2" style="font-size:12px;color:#000000;">Collected: <b style="color:#000000;">&#8369;<?php echo number_format($totalPayments, 2); ?></b></div>
                         <?php else: ?>
                             <div class="empty-note"><i class="fa-solid fa-receipt d-block mb-2" style="font-size:22px;opacity:.5;"></i>No payments recorded yet.</div>
                         <?php endif; ?>
@@ -1856,7 +1884,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                             <?php foreach ($actionItems as $item): ?>
                                 <a href="<?php echo $item[1]; ?>" class="mini-item">
                                     <div class="mi-left">
-                                        <div class="mi-icon" style="background: <?php echo $item[4]; ?>;"><i class="fa-solid <?php echo $item[3]; ?>"></i></div>
+                                        <div class="mi-icon" style="background: #ffffff !important; color: var(--primary-red) !important; border: 1px solid #e2e8f0;"><i class="fa-solid <?php echo $item[3]; ?>"></i></div>
                                         <div class="mi-text"><div class="mi-title"><?php echo htmlspecialchars($item[0]); ?></div></div>
                                     </div>
                                     <?php if ($item[2] > 0): ?>
@@ -1887,7 +1915,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                                     <?php if (count($recentApplications) > 0): ?>
                                         <?php foreach ($recentApplications as $row): ?>
                                             <tr onclick="window.location.href='view_rental.php?id=<?php echo $row['id']; ?>'">
-                                                <td><strong style="color:var(--primary-red);"><?php echo htmlspecialchars($row['tracking_no'] ?? 'N/A'); ?></strong></td>
+                                                <td><strong style="color:#000000;"><?php echo htmlspecialchars($row['tracking_no'] ?? 'N/A'); ?></strong></td>
                                                 <td><?php echo htmlspecialchars($row['owner_name'] ?? 'Unknown'); ?></td>
                                                 <td><?php echo htmlspecialchars($row['business_name'] ?? 'N/A'); ?></td>
                                                 <td>
@@ -1900,11 +1928,11 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                                                     ?>
                                                     <span class="badge <?php echo $class; ?>"><?php echo htmlspecialchars($status); ?></span>
                                                 </td>
-                                                <td style="color:#64748b;"><?php echo date("M d, Y", strtotime($row['created_at'] ?? 'now')); ?></td>
+                                                <td style="color:#000000;"><?php echo date("M d, Y", strtotime($row['created_at'] ?? 'now')); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <tr><td colspan="5" style="text-align:center;padding:30px 0;color:#64748b;">No rental applications found.</td></tr>
+                                        <tr><td colspan="5" style="text-align:center;padding:30px 0;color:#000000;">No rental applications found.</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
@@ -1940,12 +1968,12 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                                         </div>
                                         <div class="app-row">
                                             <span class="app-label">Date</span>
-                                            <span class="app-value" style="color:#64748b; font-weight: 500;"><?php echo date("M d, Y", strtotime($row['created_at'] ?? 'now')); ?></span>
+                                            <span class="app-value" style="color:#000000; font-weight: 500;"><?php echo date("M d, Y", strtotime($row['created_at'] ?? 'now')); ?></span>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <div style="text-align:center;padding:30px 0;color:#64748b;font-size:13px;">No rental applications found.</div>
+                                <div style="text-align:center;padding:30px 0;color:#000000;font-size:13px;">No rental applications found.</div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -2014,22 +2042,22 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold" id="clearChatModalLabel" style="font-size: 16px; color: var(--primary-red);">
-                        <i class="fa-solid fa-triangle-exclamation me-2"></i> Clear Conversation History
+                    <h5 class="modal-title fw-bold" id="clearChatModalLabel" style="font-size: 16px; color: #000000;">
+                        <i class="fa-solid fa-triangle-exclamation me-2" style="color: var(--primary-red);"></i> Clear Conversation History
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-4 text-center">
                     <div class="mb-3">
-                        <div style="width: 60px; height: 60px; margin: 0 auto; background: var(--red-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--primary-red-light);">
+                        <div style="width: 60px; height: 60px; margin: 0 auto; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1.5px solid #fecdd3;">
                             <i class="fa-solid fa-trash-can" style="font-size: 24px; color: var(--primary-red);"></i>
                         </div>
                     </div>
-                    <h5 class="fw-bold mb-2">Are you sure you want to clear all conversation history?</h5>
+                    <h5 class="fw-bold mb-2 text-dark">Are you sure you want to clear all conversation history?</h5>
                     <p class="text-muted small mb-0">This action will permanently remove all messages for both parties and cannot be undone.</p>
                 </div>
                 <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-light border px-4 py-2" data-bs-dismiss="modal" style="font-size: 13px; font-weight: 600;">Cancel</button>
+                    <button type="button" class="btn btn-light border px-4 py-2 text-dark" data-bs-dismiss="modal" style="font-size: 13px; font-weight: 600;">Cancel</button>
                     <button type="button" class="btn px-4 py-2" id="confirmClearChatBtn" style="font-size: 13px; font-weight: 600; background: var(--primary-red); border: none; color: #fff;">Yes, Clear All</button>
                 </div>
             </div>
@@ -2039,20 +2067,20 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
     <!-- SEARCH POPUP MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content" style="background: #ffffff; color: #0f172a; border-radius: 20px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15); overflow: hidden;">
+            <div class="modal-content" style="background: #ffffff; color: #000000; border-radius: 20px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15); overflow: hidden;">
                 <div class="modal-header border-bottom px-4 py-3">
-                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="searchModalLabel" style="font-size: 15px; color: var(--primary-red);">
-                        <i class="fa-solid fa-magnifying-glass" style="font-size: 14px;"></i> Global System Search
+                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2" id="searchModalLabel" style="font-size: 15px; color: #000000;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 14px; color: var(--primary-red);"></i> Global System Search
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div style="position: relative; margin-bottom: 20px;">
                         <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary-red); font-size: 16px;"></i>
-                        <input type="text" id="modalSearchInput" class="form-control" placeholder="Search by tracking number, business name, or owner..." autocomplete="off" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-size: 14px; outline: none; transition: all 0.3s ease;">
+                        <input type="text" id="modalSearchInput" class="form-control" placeholder="Search by tracking number, business name, or owner..." autocomplete="off" style="width: 100%; padding: 14px 16px 14px 48px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #ffffff; font-size: 14px; outline: none; transition: all 0.3s ease; color: #000000;">
                     </div>
                     <div id="modalSearchResults" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
-                        <div style="text-align: center; padding: 40px 20px; color: #64748b; font-size: 13px;">
+                        <div style="text-align: center; padding: 40px 20px; color: #000000; font-size: 13px;">
                             <i class="fa-regular fa-keyboard" style="font-size: 28px; margin-bottom: 10px; display: block; opacity: 0.6; color: var(--primary-red);"></i>
                             Type at least 2 characters to begin searching records...
                         </div>
@@ -2221,7 +2249,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
             let query = this.value.trim();
             if (query.length < 2) {
                 modalSearchResults.innerHTML = `
-                    <div style="text-align: center; padding: 40px 20px; color: #64748b; font-size: 13px;">
+                    <div style="text-align: center; padding: 40px 20px; color: #000000; font-size: 13px;">
                         <i class="fa-regular fa-keyboard" style="font-size: 28px; margin-bottom: 10px; display: block; opacity: 0.6; color: var(--primary-red);"></i>
                         Type at least 2 characters to begin searching records...
                     </div>
@@ -2236,8 +2264,8 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         modalSearchResults.innerHTML = html;
                     } else {
                         modalSearchResults.innerHTML = `
-                            <div style="text-align: center; padding: 30px; color: #64748b; font-size: 13px;">
-                                <i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5;"></i> No matching results found.
+                            <div style="text-align: center; padding: 30px; color: #000000; font-size: 13px;">
+                                <i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; opacity: 0.5; color: var(--primary-red);"></i> No matching results found.
                             </div>
                         `;
                     }
@@ -2331,7 +2359,7 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                     if (data.status === 'success') {
                         chatBody.innerHTML = '';
                         if (data.messages.length === 0) {
-                            chatBody.innerHTML = '<div class="text-center text-muted small py-3">No messages yet.</div>';
+                            chatBody.innerHTML = '<div class="text-center text-muted small py-3 text-dark">No messages yet.</div>';
                             return;
                         }
                         data.messages.forEach(m => {
@@ -2396,7 +2424,15 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         borderRadius: 8
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b' } }, y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#64748b', stepSize: 1 } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        x: { grid: { display: false }, ticks: { color: '#000000' } }, 
+                        y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.1)' }, ticks: { color: '#000000', stepSize: 1 } } 
+                    } 
+                }
             });
 
             const ctxCollection = document.getElementById('monthlyCollectionChart').getContext('2d');
@@ -2409,7 +2445,15 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         fill: true, backgroundColor: 'rgba(220, 38, 38, 0.08)', borderColor: '#dc2626', borderWidth: 3, tension: 0.4, pointRadius: 4
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b' } }, y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#64748b' } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        x: { grid: { display: false }, ticks: { color: '#000000' } }, 
+                        y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.1)' }, ticks: { color: '#000000' } } 
+                    } 
+                }
             });
 
             const brgyEl = document.getElementById('barangayChart');
@@ -2420,8 +2464,16 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         labels: <?php echo json_encode($barangayLabels); ?>,
                         datasets: [{ data: <?php echo json_encode($barangayCounts); ?>, backgroundColor: '#dc2626', borderRadius: 6, barThickness: 14 }]
                     },
-                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                        scales: { x: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#64748b', font: { size: 11 }, precision: 0 } }, y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } } } }
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            x: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.1)' }, ticks: { color: '#000000', font: { size: 11 }, precision: 0 } }, 
+                            y: { grid: { display: false }, ticks: { color: '#000000', font: { size: 11 } } } 
+                        } 
+                    }
                 });
             }
 
@@ -2433,7 +2485,12 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                         labels: ['Verified', 'Pending'],
                         datasets: [{ data: [<?php echo (int)$verifiedPayments; ?>, <?php echo (int)$pendingPayments; ?>], backgroundColor: ['#16a34a', '#f59e0b'], borderWidth: 0 }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: '#64748b' } } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        cutout: '68%', 
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: '#000000' } } } 
+                    }
                 });
             }
 
@@ -2461,9 +2518,9 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                 div.style.fontSize = '12px';
                 div.style.lineHeight = '1.8';
                 div.style.border = '1px solid #e2e8f0';
-                div.style.color = '#0f172a';
+                div.style.color = '#000000';
                 div.innerHTML = `
-                    <div style="font-weight: 700; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569;">Status Legend</div>
+                    <div style="font-weight: 700; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #000000;">Status Legend</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#16a34a; border:1.5px solid #fff; box-shadow:0 0 4px rgba(0,0,0,0.2);"></span> Approved
                     </div>
@@ -2530,12 +2587,12 @@ $totalActionCount = array_sum(array_column($actionItems, 2));
                 let approxNote = isApproximate ? ' <span style="color: #f59e0b; font-size: 10px;">(approximate)</span>' : '';
 
                 marker.bindPopup(`
-                    <div style="font-family: 'Inter', sans-serif; font-size: 12px; min-width: 200px;">
-                        <strong style="color: #dc2626; font-size: 13px; display: block; margin-bottom: 2px;">${escapeHtml(prop.business_name)}</strong>
-                        <span style="display: block; color: #475569;">Tracking: <b>${escapeHtml(prop.tracking_no)}</b></span>
-                        <span style="display: block; color: #475569;">Owner: ${escapeHtml(prop.owner_name ?? 'N/A')}</span>
-                        <span style="display: block; color: #475569;">Address: ${escapeHtml(addressString)}${approxNote}</span>
-                        <span style="display: block; color: #475569; margin-bottom: 6px;">Status: <span style="font-weight: 600; text-transform: uppercase;">${escapeHtml(status)}</span></span>
+                    <div style="font-family: 'Inter', sans-serif; font-size: 12px; min-width: 200px; color: #000000;">
+                        <strong style="color: #000000; font-size: 13px; display: block; margin-bottom: 2px;">${escapeHtml(prop.business_name)}</strong>
+                        <span style="display: block; color: #000000;">Tracking: <b>${escapeHtml(prop.tracking_no)}</b></span>
+                        <span style="display: block; color: #000000;">Owner: ${escapeHtml(prop.owner_name ?? 'N/A')}</span>
+                        <span style="display: block; color: #000000;">Address: ${escapeHtml(addressString)}${approxNote}</span>
+                        <span style="display: block; color: #000000; margin-bottom: 6px;">Status: <span style="font-weight: 600; text-transform: uppercase;">${escapeHtml(status)}</span></span>
                         <div style="display: flex; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 4px;">
                             <a href="view_rental.php?id=${prop.id}" style="color: #0284c7; text-decoration: none; font-weight: 600;">View →</a>
                             <span style="color: #cbd5e1;">|</span>

@@ -1003,14 +1003,15 @@ function statusClass($status) {
         .dashboard-shell { display: flex; flex-direction: column; gap: 18px; }
 
         .welcome-banner {
-            background: linear-gradient(135deg, #dc2626, #991b1b);
+            background: #f8fafc;
+            border: 1px solid var(--card-border);
             border-radius: 18px;
             padding: 22px 26px;
-            color: #ffffff;
+            color: #0f172a;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
             position: relative;
             overflow: hidden;
         }
@@ -1019,7 +1020,7 @@ function statusClass($status) {
             position: absolute;
             right: -20px; bottom: -30px;
             width: 180px; height: 180px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(220, 38, 38, 0.05);
             border-radius: 50%;
             pointer-events: none;
         }
@@ -1028,24 +1029,24 @@ function statusClass($status) {
             font-size: 22px; font-weight: 800;
             margin: 0 0 4px 0;
             letter-spacing: -0.3px;
+            color: #991b1b; /* Dark red for header text */
         }
         .welcome-content p {
-            font-size: 13px; color: #fee2e2; margin: 0; font-weight: 500;
+            font-size: 13px; color: #64748b; margin: 0; font-weight: 500;
         }
         .welcome-clock-box {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: #ffffff;
+            border: 1px solid var(--card-border);
             padding: 8px 16px; border-radius: 12px;
             text-align: right;
-            backdrop-filter: blur(6px);
         }
         .welcome-clock-time {
             font-family: 'Space Grotesk', sans-serif;
             font-size: 16px; font-weight: 800;
-            color: #ffffff; line-height: 1.1;
+            color: #0f172a; line-height: 1.1;
         }
         .welcome-clock-date {
-            font-size: 11px; color: #fecdd3;
+            font-size: 11px; color: #64748b;
             font-weight: 600; text-transform: uppercase;
         }
 
@@ -1056,55 +1057,53 @@ function statusClass($status) {
 
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 
+        /* ✅ PLAIN LIGHT CARD - SUMMARY CARDS (BLACK TEXT) */
         .summary-card {
             border-radius: 18px; padding: 20px;
             display: flex; justify-content: space-between; align-items: center;
-            color: #ffffff; transition: var(--transition);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); border: none;
+            color: #0f172a; transition: var(--transition);
+            background: #f8fafc;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
             text-decoration: none; cursor: pointer;
         }
-        .summary-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15); color: #ffffff; }
+        .summary-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08); color: #0f172a; }
 
-        .summary-card span { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9; }
-        .summary-card strong { font-size: 32px; font-weight: 800; font-family: 'Space Grotesk', sans-serif; display: block; line-height: 1; margin-top: 6px; }
+        .summary-card span { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; }
+        .summary-card strong { font-size: 32px; font-weight: 800; font-family: 'Space Grotesk', sans-serif; display: block; line-height: 1; margin-top: 6px; color: #0f172a; }
 
         .summary-icon {
             width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 20px;
-            background: rgba(255, 255, 255, 0.22); color: #ffffff; backdrop-filter: blur(4px);
+            background: #ffffff; border: 1px solid var(--card-border); color: var(--accent-blue);
         }
 
-        .card-blue { background: linear-gradient(135deg, #e11d48, #9f1239); }
-        .card-purple { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
-        .card-teal { background: linear-gradient(135deg, #059669, #047857); }
-        .card-orange { background: linear-gradient(135deg, #ea580c, #c2410c); }
+        .card-blue, .card-purple, .card-teal, .card-orange { /* Inalis ang background gradient */ }
 
         .quick-actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 4px; }
 
+        /* ✅ PLAIN LIGHT CARD - QUICK ACTIONS (BLACK TEXT) */
         .action-card {
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-            padding: 14px 10px; border-radius: 14px; text-decoration: none; color: #ffffff;
-            transition: var(--transition); min-height: 85px; border: none;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+            padding: 14px 10px; border-radius: 14px; text-decoration: none; color: #0f172a;
+            transition: var(--transition); min-height: 85px;
+            background: #f8fafc;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
-        .action-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18); color: #ffffff; }
+        .action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); border-color: #cbd5e1; color: #0f172a; }
 
         .action-card .icon-box {
             width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-            font-size: 16px; background: rgba(255, 255, 255, 0.25); color: #ffffff;
+            font-size: 16px; background: #ffffff; border: 1px solid var(--card-border); color: var(--accent-blue);
         }
         .action-card span { font-size: 11.5px; font-weight: 700; text-align: center; white-space: nowrap; }
 
-        .qa-blue { background: linear-gradient(135deg, #dc2626, #991b1b); }
-        .qa-purple { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
-        .qa-teal { background: linear-gradient(135deg, #059669, #047857); }
-        .qa-emerald { background: linear-gradient(135deg, #10b981, #047857); }
-        .qa-coral { background: linear-gradient(135deg, #e11d48, #9f1239); }
-        .qa-indigo { background: linear-gradient(135deg, #0891b2, #155e75); }
+        .qa-blue, .qa-purple, .qa-teal, .qa-emerald, .qa-coral, .qa-indigo { /* Inalis ang background gradient */ }
 
         .dashboard-card-panel {
-            background: var(--bg-card); border: 1px solid var(--card-border);
+            background: #ffffff; border: 1px solid var(--card-border);
             border-radius: 18px; padding: 20px; transition: var(--transition);
-            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
         }
         .panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .panel-heading h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; margin: 0; color: #0f172a; }
@@ -1149,8 +1148,9 @@ function statusClass($status) {
             display: flex; align-items: center; gap: 12px; padding: 10px 12px;
             border: 1px solid var(--card-border); border-radius: 12px; text-decoration: none;
             color: var(--text-secondary); font-size: 12.5px; font-weight: 600; transition: var(--transition);
+            background: #f8fafc;
         }
-        .action-item:hover { transform: translateX(3px); border-color: var(--accent-blue-light); color: var(--text-primary); }
+        .action-item:hover { transform: translateX(3px); border-color: var(--accent-blue-light); color: var(--text-primary); background: #ffffff; }
         .action-item .ai-ico { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; }
         .action-item .ai-arrow { margin-left: auto; color: var(--text-faint); font-size: 11px; }
 
@@ -1188,7 +1188,7 @@ function statusClass($status) {
         .search-modal-content {
             width: 90%; max-width: 650px; background: #ffffff;
             border: 1px solid var(--card-border); border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(220, 38, 38, 0.2), 0 0 30px rgba(220, 38, 38, 0.1);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
             overflow: hidden; transform: translateY(-20px) scale(0.98); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .search-modal-overlay.active .search-modal-content { transform: translateY(0) scale(1); }
